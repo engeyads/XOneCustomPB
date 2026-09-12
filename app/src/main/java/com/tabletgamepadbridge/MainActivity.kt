@@ -17,12 +17,11 @@ import androidx.appcompat.app.AppCompatActivity
 import com.tabletgamepadbridge.adb.PairingProgress
 import com.tabletgamepadbridge.adb.WirelessAdbHelperService
 import java.util.Locale
-import kotlin.math.hypot
 
 /**
  * Reads the controller via USB-OTG (GIP protocol), then re-emits it as a
  * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics
- * for battery, latency, poll rate, stick displacement, and deadzone.
+ * for battery, latency, poll rate, and fixed deadzone calibration.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -47,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var reconnectAttemptsLeft = 0
     private var lastInputName = "—"
+    private var staticDeadzonePct = 27
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,8 +97,8 @@ class MainActivity : AppCompatActivity() {
             rightStickCoords.text = "+0.00 , +0.00"
             leftTriggerValue.text = "0%"
             rightTriggerValue.text = "0%"
-            deadzoneText.text = "0%"
-            deadzoneProgressBar.progress = 0
+            deadzoneText.text = "$staticDeadzonePct%"
+            deadzoneProgressBar.progress = staticDeadzonePct
             lastInputText.text = "—"
         }
 
@@ -246,12 +246,6 @@ class MainActivity : AppCompatActivity() {
             val ltPct = ((state.leftTrigger / 1023.0f) * 100).toInt().coerceIn(0, 100)
             val rtPct = ((state.rightTrigger / 1023.0f) * 100).toInt().coerceIn(0, 100)
 
-            // Real-time stick displacement calculation for Deadzone meter
-            val lDeflect = hypot(lx.toDouble(), ly.toDouble())
-            val rDeflect = hypot(rx.toDouble(), ry.toDouble())
-            val maxDeflect = maxOf(lDeflect, rDeflect).coerceIn(0.0, 1.0)
-            val deadzonePct = (maxDeflect * 100).toInt()
-
             determineLastInput(state)
 
             runOnUiThread {
@@ -261,8 +255,9 @@ class MainActivity : AppCompatActivity() {
                 latencyText.text = "${state.latencyMs} ms"
                 pollText.text = "${state.pollHz} Hz"
 
-                deadzoneText.text = "$deadzonePct%"
-                deadzoneProgressBar.progress = deadzonePct
+                // Stable Deadzone Threshold Calibration (27%)
+                deadzoneText.text = "$staticDeadzonePct%"
+                deadzoneProgressBar.progress = staticDeadzonePct
 
                 leftStickCoords.text = String.format(Locale.US, "%+.2f , %+.2f", lx, ly)
                 rightStickCoords.text = String.format(Locale.US, "%+.2f , %+.2f", rx, ry)
