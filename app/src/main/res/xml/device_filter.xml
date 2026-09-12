@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- VID 0x045E = 1118 (Microsoft), PID 0x02EA = 746 -->
+    <!-- This is what the dongle actually reports on Android; Windows sees a different clone identity (0x0C12/0x0F18) -->
+    <usb-device vendor-id="1118" product-id="746" />
+</resources>

@@ -1,0 +1,46 @@
+# Tablet Gamepad Bridge — Final Architecture & Status
+
+**Status: working end-to-end on the actual target device (Lenovo Tab M9 / TB310FU), confirmed live in Minecraft with the child's controller.**
+
+## Goal
+Get an unofficial 2.4GHz Xbox-style wireless controller (works on PC only, rejected by real Xbox consoles as "unofficial", uses Microsoft's proprietary GIP protocol) working as a **real, system-wide recognized gamepad** on an Android tablet — no root, and (after a later request) no separate broker app like Shizuku either.
+
+## Final architecture
+1. **`UsbGamepadReader.kt`** — talks to the controller dongle directly via Android's USB Host API (no root needed for this part). Implements enough of Microsoft's **GIP (Gaming Input Protocol)** to read real input:
+   - Protocol details (command bytes, packet layouts, the handshake sequence) reverse-engineered by reading the open-source `xone` Linux kernel driver (github.com/medusalix/xone, GPL-2.0) source directly — this is otherwise an undocumented, proprietary Microsoft protocol.
+   - Handshake: on receiving `ANNOUNCE` (0x02), send `IDENTIFY` (0x04), wait ~600ms for the device's chunked identify reply to finish, then `POWER ON` (0x05), `RUMBLE stop-all` (0x09), `LED` (0x0A), an `AUTHENTICATE` "host hello" (0x06) and a fabricated "auth complete" signal — the last two are NOT real cryptographic authentication (we can't replicate Microsoft's actual signing keys), but this specific clone's firmware apparently only checks that *some* auth attempt occurred, not that it's cryptographically valid. Without sending some form of this, the controller never leaves its "unclaimed" state (all 4 player LEDs lit) and never sends real `INPUT` (0x20) packets.
+   - Guide/Home button is a *separate* `VIRTUAL_KEY` (0x07) command, not part of the regular input report's button bitmask.
+   - Real device identity as seen by Android: VID `0x045E` (Microsoft), PID `0x02EA` — different from what Windows shows for the same physical dongle (`0x0C12`/`0x0F18`, a "for Windows" clone-chip identity). The dongle apparently reports different identities depending on host-specific negotiation.
+
+2. **`GamepadHidReport.kt`** — converts parsed GIP state into a 15-byte HID report matching scrcpy's own proven gamepad descriptor layout (`app/src/hid/hid_gamepad.c` in github.com/Genymobile/scrcpy).
+   - **Important fix**: scrcpy's descriptor (designed for desktop/SDL consumers) puts the right stick on HID usages Rx/Ry and triggers on Z/Rz. **Android's own documented convention is the opposite**: right stick → `AXIS_Z`/`AXIS_RZ`, and triggers need a completely separate HID usage page entirely — **Simulation Controls (0x02), Brake (0xC5) / Accelerator (0xC4)** — which map to `AXIS_LTRIGGER`/`AXIS_BRAKE` and `AXIS_RTRIGGER`/`AXIS_GAS`. Putting triggers on Rx/Ry (a Generic Desktop axis) gets misread by Minecraft as second-stick camera movement. Verified correct via `adb shell getevent -pl`, which should show separate `ABS_X/ABS_Y`, `ABS_Z/ABS_RZ`, and `ABS_GAS/ABS_BRAKE` — if trigger/stick behavior ever seems swapped again, check this first.
+   - Right stick Y is also sign-flipped relative to left stick Y to match expected up/down orientation — left stick needed no such flip. **Do this by inverting the final rescaled unsigned value (`0xFFFF - rescaleAxis(value)`), not by negating the raw signed value before rescaling** — negating first caused an integer wraparound exactly at full deflection (100% push registered as the opposite direction), since `-(-32768)` doesn't fit cleanly back through the same `+0x8000` rescale math.
+
+3. **`UhidGamepadService.kt`** — a plain (non-Shizuku) Binder implementing `IUhidGamepadService` (AIDL) that owns the actual `/dev/uhid` file descriptor and creates the virtual kernel gamepad device, using the same low-level UHID protocol (`UHID_CREATE2`/`UHID_INPUT2`) as scrcpy's own `UhidManager.java` (github.com/Genymobile/scrcpy, GPL-3.0) — adapted from scrcpy's Java source, not written blind.
+
+4. **`PrivilegedMain.kt`** — a plain Java-style entry point (a Kotlin `object` with `@JvmStatic fun main`), started directly via:
+   ```
+   adb shell CLASSPATH=<apk-path> app_process / --nice-name=tgb_privileged com.tabletgamepadbridge.PrivilegedMain
+   ```
+   This runs with shell UID, no root needed. It creates the `UhidGamepadService` binder, then hands it to our normal (unprivileged) app process using the **exact same mechanism Shizuku's own server uses** to cross the SELinux boundary between "shell" and "untrusted_app" domains:
+   - A raw Unix-domain-socket connect from the app to a shell-owned socket is **hard-blocked by SELinux policy** (`avc: denied { connectto } ... scontext=u:r:untrusted_app ... tcontext=u:r:shell`) — confirmed by testing, not fixable without root. This ruled out a simpler `LocalServerSocket` approach that was tried first.
+   - The working path instead uses **reflection to call hidden/internal Android APIs**: `ServiceManager.getService("activity")` → `IActivityManager.Stub.asInterface()` → the hidden `getContentProviderExternal(name, userId, token, tag)` method → get `.provider` (an `IContentProvider`) off the returned `ContentProviderHolder` → call the real 5-arg `IContentProvider.call(AttributionSource, authority, method, arg, extras)` (constructing `AttributionSource` via its hidden `(int uid, String packageName, String attributionTag)` constructor) with the Binder packed into the `extras` Bundle via `putBinder()`.
+   - **Must use the real 5-arg `call()`, not the deprecated 4-arg default method** — the deprecated one hardcodes `authority="unknown"` internally, which Android 13 rejects with `SecurityException: The authority unknown does not match...`. This cost one debugging round; if this mechanism ever needs revisiting on a different Android version, check the exact `IContentProvider`/`IActivityManager` AIDL signatures for that specific API level first (fetched from `android.googlesource.com/platform/frameworks/base` at the matching `android-XX.0.0_rN` tag) rather than assuming they match what's documented here — these are hidden APIs that change across versions and OEM forks.
+   - This whole mechanism was verified to work identically on both the Samsung Galaxy A52 (development device) and the actual Lenovo TB310FU target tablet, first try on the tablet — no device-specific SELinux surprises encountered despite that risk being flagged upfront.
+
+5. **`UhidBinderProvider.kt`** — a `ContentProvider` in our own app (authority `${applicationId}.uhid`, `exported=true`, `multiprocess=false`, `permission=android.permission.INTERACT_ACROSS_USERS_FULL`) that receives the Binder via `call()` and stores it statically for `MainActivity` to use.
+
+## Known limitation (inherent, not a bug)
+Since this isn't rooted, **the privileged helper process must be restarted via ADB after every tablet reboot** — this is the same fundamental limitation Shizuku itself would have (Shizuku's own docs confirm: "needs to be manually restarted with adb every time on boot" on non-rooted devices). There is no way around this without rooting the device. A **"Tablet Gamepad Helper.bat"** file on the desktop (OneDrive-redirected path) automates the reconnect + restart in one double-click — it hardcodes the tablet's last-known Wi-Fi IP, so it needs updating if that changes.
+
+The helper process itself is unaffected by unplugging/replugging the *controller* (that only affects `UsbGamepadReader`'s USB session, not the privileged helper/UHID device) — only the helper process itself dying (tablet reboot) requires the PC/batch file.
+
+**App-side self-healing**: `PrivilegedMain` re-sends its Binder to the app every 5 seconds in an infinite loop (not just once at startup). This means the app itself can restart freely (crash, force-stop, reinstall) and will automatically reconnect within a few seconds with zero PC/ADB involvement — confirmed working by force-stopping and relaunching the app and observing "Privileged helper: connected ✓" appear on its own. Only a full reboot of the *helper process* (which happens on tablet reboot) still needs manual ADB intervention.
+
+## HidHide note (separate, PC-side concern)
+Earlier in this project, **HidHide** (`winget install Nefarius.HidHide`) was set up to cloak the physical controller from Windows itself while it's being used via the PC-relay (scrcpy) approach, so it doesn't double-input into the PC. That's unrelated to this final on-device architecture and only matters if reverting to the PC-relay method.
+
+## If picking this up again
+- Dev/build environment: JDK 17 (`C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot`), Android SDK at `C:\Users\iyads\AndroidSdk`, Gradle 8.7 (standalone, not a wrapper) at `C:\Users\iyads\gradle-8.7`.
+- Build: `& "C:\Users\iyads\gradle-8.7\bin\gradle.bat" assembleDebug` from the project root (after setting `$env:JAVA_HOME`).
+- To redeploy after a code change: reinstall the APK, `pkill -f tgb_privileged` on the device, get the fresh APK path via `pm path com.tabletgamepadbridge`, then re-run the `app_process` command above (see "Tablet Gamepad Helper.bat" for the exact pattern, including the `nohup ... &` wrapping needed so the helper survives independently of the ADB connection).
