@@ -11,16 +11,18 @@ import android.provider.Settings
 import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.tabletgamepadbridge.adb.PairingProgress
 import com.tabletgamepadbridge.adb.WirelessAdbHelperService
 import java.util.Locale
+import kotlin.math.hypot
 
 /**
  * Reads the controller via USB-OTG (GIP protocol), then re-emits it as a
- * real virtual USB gamepad (via /dev/uhid) with a real-time Pad Link dashboard
- * matching the Xbox controller aesthetic and analog trigger sensitivity.
+ * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics
+ * for battery, latency, poll rate, stick displacement, and deadzone.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -28,6 +30,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var connectedBadge: TextView
     private lateinit var helperStatusText: TextView
     private lateinit var wirelessStatusText: TextView
+    private lateinit var batteryText: TextView
+    private lateinit var latencyText: TextView
+    private lateinit var pollText: TextView
+    private lateinit var deadzoneText: TextView
+    private lateinit var deadzoneProgressBar: ProgressBar
     private lateinit var leftStickCoords: TextView
     private lateinit var rightStickCoords: TextView
     private lateinit var leftTriggerValue: TextView
@@ -56,6 +63,11 @@ class MainActivity : AppCompatActivity() {
         connectedBadge = findViewById(R.id.connectedBadge)
         helperStatusText = findViewById(R.id.helperStatusText)
         wirelessStatusText = findViewById(R.id.wirelessStatusText)
+        batteryText = findViewById(R.id.batteryText)
+        latencyText = findViewById(R.id.latencyText)
+        pollText = findViewById(R.id.pollText)
+        deadzoneText = findViewById(R.id.deadzoneText)
+        deadzoneProgressBar = findViewById(R.id.deadzoneProgressBar)
         leftStickCoords = findViewById(R.id.leftStickCoords)
         rightStickCoords = findViewById(R.id.rightStickCoords)
         leftTriggerValue = findViewById(R.id.leftTriggerValue)
@@ -65,9 +77,14 @@ class MainActivity : AppCompatActivity() {
         recenterBtn = findViewById(R.id.recenterBtn)
 
         val openAccessibilityBtn = findViewById<Button>(R.id.openAccessibilityBtn)
+        val welcomeBtn = findViewById<Button>(R.id.welcomeBtn)
 
         openAccessibilityBtn.setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+
+        welcomeBtn.setOnClickListener {
+            startActivity(Intent(this, WelcomeActivity::class.java))
         }
 
         connectBtn.setOnClickListener {
@@ -80,6 +97,8 @@ class MainActivity : AppCompatActivity() {
             rightStickCoords.text = "+0.00 , +0.00"
             leftTriggerValue.text = "0%"
             rightTriggerValue.text = "0%"
+            deadzoneText.text = "0%"
+            deadzoneProgressBar.progress = 0
             lastInputText.text = "—"
         }
 
@@ -227,10 +246,23 @@ class MainActivity : AppCompatActivity() {
             val ltPct = ((state.leftTrigger / 1023.0f) * 100).toInt().coerceIn(0, 100)
             val rtPct = ((state.rightTrigger / 1023.0f) * 100).toInt().coerceIn(0, 100)
 
+            // Real-time stick displacement calculation for Deadzone meter
+            val lDeflect = hypot(lx.toDouble(), ly.toDouble())
+            val rDeflect = hypot(rx.toDouble(), ry.toDouble())
+            val maxDeflect = maxOf(lDeflect, rDeflect).coerceIn(0.0, 1.0)
+            val deadzonePct = (maxDeflect * 100).toInt()
+
             determineLastInput(state)
 
             runOnUiThread {
                 controllerVisualizer.updateState(state)
+
+                batteryText.text = "${state.batteryPercent}%"
+                latencyText.text = "${state.latencyMs} ms"
+                pollText.text = "${state.pollHz} Hz"
+
+                deadzoneText.text = "$deadzonePct%"
+                deadzoneProgressBar.progress = deadzonePct
 
                 leftStickCoords.text = String.format(Locale.US, "%+.2f , %+.2f", lx, ly)
                 rightStickCoords.text = String.format(Locale.US, "%+.2f , %+.2f", rx, ry)

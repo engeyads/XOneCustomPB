@@ -21,5 +21,8 @@ data class GamepadState(
     val leftStickX: Int = 0,
     val leftStickY: Int = 0,
     val rightStickX: Int = 0,
-    val rightStickY: Int = 0
+    val rightStickY: Int = 0,
+    val pollHz: Int = 250,
+    val latencyMs: Long = 4,
+    val batteryPercent: Int = 100
 )

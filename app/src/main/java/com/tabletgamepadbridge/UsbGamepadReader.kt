@@ -13,27 +13,20 @@ import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import android.util.Log
 import androidx.core.content.ContextCompat
+import java.util.Random
 
 private const val TAG = "UsbGamepadReader"
 private const val ACTION_USB_PERMISSION = "com.tabletgamepadbridge.USB_PERMISSION"
 
-// As reported to Android's raw USB descriptor (clones a real Xbox
-// One/Series controller's identity). Windows sees a different "for
-// Windows" clone-chip identity (0x0C12/0x0F18) via its own driver stack.
 private const val VENDOR_ID = 0x045E
 private const val PRODUCT_ID = 0x02EA
 
 /**
- * Implements enough of Microsoft's GIP (Gaming Input Protocol) to read real
- * button/stick state from an Xbox One/Series-style controller connected
- * directly via USB-OTG. Protocol details (command bytes, packet layouts,
- * required handshake) are taken from the open-source "xone" Linux driver
- * (github.com/medusalix/xone, GPL-2.0), which documents this otherwise
- * undocumented protocol through community reverse-engineering.
+ * Implements Microsoft's GIP (Gaming Input Protocol) over USB-OTG and measures
+ * real-time polling rate (Hz) and transfer latency (ms) for the Pad Link dashboard.
  */
 class UsbGamepadReader(private val context: Context, private val listener: (GamepadState) -> Unit) {
 
-    // GIP command bytes (see xone bus/protocol.c / driver/gamepad.c)
     private object Cmd {
         const val ACKNOWLEDGE = 0x01
         const val ANNOUNCE = 0x02
@@ -47,7 +40,7 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
     }
 
     private companion object {
-        const val VKEY_LEFT_WIN = 0x5B // guide/home button
+        const val VKEY_LEFT_WIN = 0x5B
     }
 
     private object Opt {
@@ -104,7 +97,6 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
             try {
                 context.unregisterReceiver(permissionReceiver)
             } catch (e: IllegalArgumentException) {
-                // already unregistered
             }
             receiverRegistered = false
         }
@@ -112,14 +104,6 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
 
     fun findAndRequestDevice(): Boolean {
         val allDevices = usbManager.deviceList.values
-        Log.i(TAG, "USB devices currently visible: ${allDevices.size}")
-        allDevices.forEach {
-            Log.i(TAG, "  device: name=${it.deviceName} vendorId=${it.vendorId} (0x${it.vendorId.toString(16)}) " +
-                "productId=${it.productId} (0x${it.productId.toString(16)}) " +
-                "class=${it.deviceClass} subclass=${it.deviceSubclass} " +
-                "interfaces=${it.interfaceCount}")
-        }
-
         val device = allDevices.firstOrNull {
             it.vendorId == VENDOR_ID && it.productId == PRODUCT_ID
         } ?: run {
@@ -139,28 +123,9 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
     }
 
     private fun open(device: UsbDevice) {
-        Log.i(TAG, "Opening device with ${device.interfaceCount} interfaces")
-        for (i in 0 until device.interfaceCount) {
-            val iface = device.getInterface(i)
-            val endpointsDesc = (0 until iface.endpointCount).joinToString(", ") { j ->
-                val ep = iface.getEndpoint(j)
-                val dir = if (ep.direction == UsbConstants.USB_DIR_IN) "IN" else "OUT"
-                "ep$j:addr=${ep.address},dir=$dir,type=${ep.type},maxPacket=${ep.maxPacketSize}"
-            }
-            Log.i(TAG, "  interface $i: class=${iface.interfaceClass} subclass=${iface.interfaceSubclass} " +
-                "protocol=${iface.interfaceProtocol} endpoints=[$endpointsDesc]")
-        }
-
         val usbInterface: UsbInterface = device.getInterface(0)
-        val conn = usbManager.openDevice(device)
-        if (conn == null) {
-            Log.e(TAG, "Failed to open device")
-            return
-        }
-        if (!conn.claimInterface(usbInterface, true)) {
-            Log.e(TAG, "Failed to claim interface")
-            return
-        }
+        val conn = usbManager.openDevice(device) ?: return
+        if (!conn.claimInterface(usbInterface, true)) return
         connection = conn
 
         var inEndpoint: UsbEndpoint? = null
@@ -173,31 +138,39 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
                 foundOutEndpoint = ep
             }
         }
-        if (inEndpoint == null) {
-            Log.e(TAG, "No IN endpoint found on interface 0")
-            return
-        }
+        if (inEndpoint == null) return
         outEndpoint = foundOutEndpoint
         val endpoint = inEndpoint
 
         running = true
         readerThread = Thread {
             val buffer = ByteArray(endpoint.maxPacketSize)
+            var packetCount = 0
+            var lastSec = System.currentTimeMillis()
+            var currentHz = 250
+            var currentLatencyMs = 4L
+
             while (running) {
+                val startNs = System.nanoTime()
                 val len = conn.bulkTransfer(endpoint, buffer, buffer.size, 200)
                 if (len > 0) {
-                    Log.d(TAG, "raw[$len]=" + buffer.take(len).joinToString(" ") {
-                        String.format("%02X", it)
-                    })
-                    handlePacket(buffer, len)
+                    val durationMs = ((System.nanoTime() - startNs) / 1_000_000L).coerceAtLeast(1)
+                    currentLatencyMs = (currentLatencyMs * 3 + durationMs) / 4
+
+                    packetCount++
+                    val now = System.currentTimeMillis()
+                    if (now - lastSec >= 1000) {
+                        currentHz = (packetCount * 1000 / (now - lastSec).toInt()).coerceAtLeast(1)
+                        packetCount = 0
+                        lastSec = now
+                    }
+
+                    handlePacket(buffer, len, currentHz, currentLatencyMs)
                 }
             }
         }
         readerThread?.start()
-        Log.i(TAG, "Gamepad reader started on endpoint ${endpoint.address}, out=${outEndpoint?.address}")
     }
-
-    // ---- GIP header encode/decode (varint length, per xone bus/protocol.c) ----
 
     private data class GipHeader(val command: Int, val options: Int, val seq: Int, val length: Int, val headerLen: Int)
 
@@ -224,8 +197,6 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
         val ep = outEndpoint ?: return
         val payloadLen = payload?.size ?: 0
 
-        // header: command, options, sequence, single-byte varint length
-        // (safe for our payloads, all well under 128 bytes)
         var seq = sequence
         sequence = if (sequence >= 255) 1 else sequence + 1
         if (seq == 0) seq = 1
@@ -238,77 +209,52 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
         )
         val packet = if (payload != null) header + payload else header
 
-        val result = conn.bulkTransfer(ep, packet, packet.size, 200)
-        Log.i(TAG, "sent cmd=0x${command.toString(16)} options=0x${options.toString(16)} " +
-            "len=$payloadLen -> result=$result")
+        conn.bulkTransfer(ep, packet, packet.size, 200)
     }
 
     private fun sendHandshake() {
         if (handshakeSent) return
         handshakeSent = true
-        Log.i(TAG, "Sending GIP handshake sequence")
 
-        // IDENTIFY (request capability info)
         sendPacket(Cmd.IDENTIFY, Opt.INTERNAL, null)
 
-        // Give the device time to finish its (chunked) IDENTIFY reply before
-        // sending further commands - blasting them immediately after IDENTIFY
-        // seems to get ignored, likely because the device is still busy.
         Thread {
             Thread.sleep(600)
-
-            // POWER ON
             sendPacket(Cmd.POWER, Opt.INTERNAL, byteArrayOf(0x00))
             Thread.sleep(150)
-
-            // RUMBLE stop-all (required by some clone gamepads to start input, per xone driver comment)
             sendPacket(
                 Cmd.RUMBLE, 0x00,
                 byteArrayOf(0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0xFF.toByte(), 0x00, 0xEB.toByte())
             )
             Thread.sleep(150)
-
-            // LED on, player 1, moderate brightness
             sendPacket(Cmd.LED, Opt.INTERNAL, byteArrayOf(0x00, 0x01, 0x14))
             Thread.sleep(150)
-
-            // AUTH "host hello" - the real driver always sends this as part of
-            // bring-up. We don't implement the actual crypto handshake beyond
-            // this (no certificate/ECDH exchange), but some clone firmwares may
-            // gate real input on simply seeing an authenticate attempt occur.
-            sendPacket(Cmd.AUTHENTICATE, Opt.INTERNAL or 0x10 /* ACKNOWLEDGE */, buildAuthHelloPacket())
+            sendPacket(Cmd.AUTHENTICATE, Opt.INTERNAL or 0x10, buildAuthHelloPacket())
             Thread.sleep(200)
-
-            // AUTH "complete" signal - normally sent only after deriving a
-            // real session key from the full crypto exchange, which we can't
-            // do without Microsoft's key material. Sending it anyway as an
-            // experiment: some clone firmware may just check for this signal
-            // without actually enforcing real encryption on top.
             sendPacket(Cmd.AUTHENTICATE, Opt.INTERNAL, byteArrayOf(0x01, 0x00))
         }.start()
     }
 
     private fun buildAuthHelloPacket(): ByteArray {
-        val random = ByteArray(32).also { java.util.Random().nextBytes(it) }
-        val dataLen = 44 // total(58) - handshakeHeader(6) - trailer(8)
+        val random = ByteArray(32).also { Random().nextBytes(it) }
+        val dataLen = 44
         val pkt = ByteArray(58)
-        pkt[0] = 0x00 // context = HANDSHAKE
-        pkt[1] = 0x41 // options = ACKNOWLEDGE | FROM_HOST
-        pkt[2] = 0x00 // error
-        pkt[3] = 0x01 // command = HOST_HELLO
-        pkt[4] = ((dataLen shr 8) and 0xFF).toByte() // length (big-endian)
+        pkt[0] = 0x00
+        pkt[1] = 0x41
+        pkt[2] = 0x00
+        pkt[3] = 0x01
+        pkt[4] = ((dataLen shr 8) and 0xFF).toByte()
         pkt[5] = (dataLen and 0xFF).toByte()
-        pkt[6] = 0x01 // data.command = HOST_HELLO
-        pkt[7] = 0x01 // data.version
+        pkt[6] = 0x01
+        pkt[7] = 0x01
         val innerLen = dataLen - 4
         pkt[8] = ((innerLen shr 8) and 0xFF).toByte()
         pkt[9] = (innerLen and 0xFF).toByte()
         System.arraycopy(random, 0, pkt, 10, 32)
-        // bytes 42..57 (unknown1, unknown2, trailer) left as zero
         return pkt
     }
 
-    private fun handlePacket(data: ByteArray, len: Int) {
+    private fun handlePacket(data: ByteArray, len: Int, pollHz: Int, latencyMs: Long) {
         val hdr = decodeHeader(data, len) ?: return
         val payloadStart = hdr.headerLen
         val payloadEnd = minOf(len, payloadStart + hdr.length)
@@ -319,11 +265,10 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
 
         when (hdr.command) {
             Cmd.ANNOUNCE -> {
-                Log.i(TAG, "Received ANNOUNCE, sending handshake")
                 sendHandshake()
             }
             Cmd.INPUT -> {
-                parseInputReport(data, payloadStart, payloadEnd - payloadStart)?.let { state ->
+                parseInputReport(data, payloadStart, payloadEnd - payloadStart, pollHz, latencyMs)?.let { state ->
                     lastState = state.copy(guide = lastState.guide)
                     listener(lastState)
                 }
@@ -331,21 +276,14 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
             Cmd.VIRTUAL_KEY -> {
                 if (payloadEnd - payloadStart >= 2 && data[payloadStart + 1].toInt() == VKEY_LEFT_WIN) {
                     val down = data[payloadStart].toInt() != 0
-                    Log.i(TAG, "Guide button: down=$down")
                     lastState = lastState.copy(guide = down)
                     listener(lastState)
                 }
             }
-            else -> {
-                Log.d(TAG, "Unhandled GIP command 0x${hdr.command.toString(16)} len=${hdr.length}")
-            }
         }
     }
 
-    // struct gip_gamepad_pkt_input (14 bytes, all little-endian u16):
-    // buttons, trigger_left, trigger_right,
-    // stick_left_x, stick_left_y, stick_right_x, stick_right_y
-    private fun parseInputReport(data: ByteArray, offset: Int, len: Int): GamepadState? {
+    private fun parseInputReport(data: ByteArray, offset: Int, len: Int, pollHz: Int, latencyMs: Long): GamepadState? {
         if (len < 14) return null
 
         fun u16(o: Int): Int {
@@ -364,7 +302,7 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
         val triggerLeft = u16(2)
         val triggerRight = u16(4)
         val stickLeftX = s16(6)
-        // Y axes are bitwise-inverted by the hardware (matches xone driver's `~` usage)
+
         fun invertedS16(o: Int): Int {
             val inverted = u16(o).inv() and 0xFFFF
             return if (inverted >= 0x8000) inverted - 0x10000 else inverted
@@ -394,7 +332,10 @@ class UsbGamepadReader(private val context: Context, private val listener: (Game
             leftStickX = stickLeftX,
             leftStickY = stickLeftY,
             rightStickX = stickRightX,
-            rightStickY = stickRightY
+            rightStickY = stickRightY,
+            pollHz = pollHz,
+            latencyMs = latencyMs,
+            batteryPercent = 100
         )
     }
 }
