@@ -6,6 +6,7 @@ plugins {
 android {
     namespace 'com.tabletgamepadbridge'
     compileSdk 34
+    ndkVersion "27.0.12077973"
 
     defaultConfig {
         applicationId "com.tabletgamepadbridge"
@@ -13,6 +14,16 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+
+        ndk {
+            abiFilters "arm64-v8a"
+        }
+
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=none'
+            }
+        }
     }
 
     buildTypes {
@@ -29,10 +40,31 @@ android {
     }
     buildFeatures {
         aidl true
+        prefab true
+    }
+    externalNativeBuild {
+        cmake {
+            path "src/main/jni/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+    packaging {
+        resources {
+            excludes += ["META-INF/versions/9/OSGI-INF/MANIFEST.MF"]
+        }
     }
 }
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
+
+    // For the Android wireless-debugging pairing handshake (SPAKE2 native
+    // crypto + the classic ADB RSA-auth reconnect protocol), adapted from
+    // Shizuku (github.com/RikkaApps/Shizuku, GPL-3.0).
+    implementation 'io.github.vvb2060.ndk:boringssl:20250114'
+    implementation 'org.lsposed.libcxx:libcxx:27.0.12077973'
+    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:6.1'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.80'
+    compileOnly 'dev.rikka.hidden:stub:4.4.0'
 }

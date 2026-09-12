@@ -1,0 +1,200 @@
+<!doctype html>
+<title>JoyBridge Icon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#EDF1F6;
+    --surface:#FFFFFF;
+    --text:#10151F;
+    --text-muted:#4B5768;
+    --divider:#D7DEE8;
+    --accent:#2E8EEB;
+
+    --icon-bg:#0E1730;
+    --pad-blue:#2E8EEB;
+    --pad-blue-dark:#1B5FB0;
+    --pad-blue-shine:#7EC3FF;
+    --pad-white:#F3F7FC;
+    --btn-yellow:#FFC72C;
+    --btn-red:#E5484D;
+    --btn-green:#3DD68C;
+    --btn-blue:#4FA8FF;
+    --btn-black:#181C22;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0B1220;
+      --surface:#131B2E;
+      --text:#EAF0FA;
+      --text-muted:#9AA9C0;
+      --divider:#23304A;
+      --accent:#4FA6FF;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0B1220;
+    --surface:#131B2E;
+    --text:#EAF0FA;
+    --text-muted:#9AA9C0;
+    --divider:#23304A;
+    --accent:#4FA6FF;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"IBM Plex Sans",system-ui,sans-serif;
+    padding-inline:16px;
+    padding-block:56px;
+  }
+  .wrap{
+    max-width:720px;
+    margin-inline:auto;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:40px;
+  }
+  .eyebrow{
+    font-size:13px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    font-weight:600;
+  }
+  h1{
+    font-family:"Chakra Petch",system-ui,sans-serif;
+    font-weight:700;
+    font-size:clamp(32px,6vw,48px);
+    margin:0;
+    text-wrap:balance;
+    text-align:center;
+    letter-spacing:.01em;
+  }
+  .tagline{
+    margin-top:-24px;
+    color:var(--text-muted);
+    font-size:16px;
+    text-align:center;
+    max-width:50ch;
+  }
+
+  .tiles{
+    display:flex;
+    gap:28px;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+  .tile-group{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+  }
+  .tile{
+    width:168px;
+    height:168px;
+    background:var(--icon-bg);
+  }
+  .tile svg{ display:block; width:100%; height:100%; }
+  .tile.square{ border-radius:34px; box-shadow:0 12px 30px -12px rgba(10,20,40,.45); }
+  .tile.circle{ border-radius:50%; box-shadow:0 12px 30px -12px rgba(10,20,40,.45); }
+  .tile-label{
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--text-muted);
+    font-weight:600;
+  }
+
+  .note{
+    border-top:1px solid var(--divider);
+    padding-top:20px;
+    max-width:560px;
+    font-size:14px;
+    line-height:1.6;
+    color:var(--text-muted);
+    text-align:center;
+  }
+  .note b{ color:var(--text); font-weight:600; }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">App icon proposal</div>
+  <h1>JoyBridge</h1>
+  <p class="tagline">Turns your controller into a real Android gamepad — matched to the actual dongle: translucent blue shell, white D‑pad and sticks, black face buttons with colored letters.</p>
+
+  <div class="tiles">
+    <div class="tile-group">
+      <div class="tile square" id="tileSquare"></div>
+      <div class="tile-label">Standard mask</div>
+    </div>
+    <div class="tile-group">
+      <div class="tile circle" id="tileCircle"></div>
+      <div class="tile-label">Circle mask</div>
+    </div>
+  </div>
+
+  <p class="note">Android adaptive icons get masked into different shapes depending on the launcher/OEM (rounded square, circle, squircle) — both are shown here so the artwork reads clearly either way. Same SVG, different clip.</p>
+</div>
+
+<template id="padSvg">
+  <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <rect width="200" height="200" fill="var(--icon-bg)"/>
+
+    <!-- body -->
+    <rect x="28" y="66" width="144" height="68" rx="34" fill="var(--pad-blue)"/>
+    <ellipse cx="70" cy="78" rx="46" ry="14" fill="var(--pad-blue-shine)" opacity="0.16"/>
+
+    <!-- decorative pattern (lightning bolts, echoing the physical shell print) -->
+    <g fill="var(--pad-white)" opacity="0.14">
+      <polygon points="46,112 53,112 49,122 55,122 44,138 47,126 41,126"/>
+      <polygon points="154,112 161,112 157,122 163,122 152,138 155,126 149,126"/>
+    </g>
+
+    <!-- top center piece -->
+    <rect x="86" y="58" width="28" height="16" rx="5" fill="var(--pad-white)"/>
+
+    <!-- left stick -->
+    <circle cx="66" cy="86" r="13" fill="var(--pad-blue-dark)"/>
+    <circle cx="66" cy="86" r="7.5" fill="var(--pad-white)"/>
+
+    <!-- d-pad -->
+    <g fill="var(--pad-white)">
+      <rect x="45" y="106" width="22" height="11" rx="2.5"/>
+      <rect x="50.5" y="100.5" width="11" height="22" rx="2.5"/>
+    </g>
+
+    <!-- right stick -->
+    <circle cx="132" cy="116" r="13" fill="var(--pad-blue-dark)"/>
+    <circle cx="132" cy="116" r="7.5" fill="var(--pad-white)"/>
+
+    <!-- face buttons -->
+    <g>
+      <circle cx="146" cy="79" r="6.5" fill="var(--btn-black)"/>
+      <circle cx="136.5" cy="88.5" r="6.5" fill="var(--btn-black)"/>
+      <circle cx="155.5" cy="88.5" r="6.5" fill="var(--btn-black)"/>
+      <circle cx="146" cy="98" r="6.5" fill="var(--btn-black)"/>
+      <text x="146" y="82.6" font-family="IBM Plex Sans" font-weight="600" font-size="8.5" fill="var(--btn-yellow)" text-anchor="middle">Y</text>
+      <text x="136.5" y="92.1" font-family="IBM Plex Sans" font-weight="600" font-size="8.5" fill="var(--btn-blue)" text-anchor="middle">X</text>
+      <text x="155.5" y="92.1" font-family="IBM Plex Sans" font-weight="600" font-size="8.5" fill="var(--btn-red)" text-anchor="middle">B</text>
+      <text x="146" y="101.6" font-family="IBM Plex Sans" font-weight="600" font-size="8.5" fill="var(--btn-green)" text-anchor="middle">A</text>
+    </g>
+
+    <!-- home button + flanking buttons -->
+    <rect x="80" y="76" width="7" height="7" rx="1.5" fill="var(--pad-white)" opacity="0.85"/>
+    <rect x="113" y="76" width="7" height="7" rx="1.5" fill="var(--pad-white)" opacity="0.85"/>
+    <circle cx="100" cy="80" r="8" fill="var(--icon-bg)" stroke="var(--pad-blue-shine)" stroke-width="2"/>
+    <circle cx="100" cy="80" r="4" fill="var(--pad-white)"/>
+  </svg>
+</template>
+
+<script>
+  const svgMarkup = document.getElementById('padSvg').innerHTML;
+  document.getElementById('tileSquare').innerHTML = svgMarkup;
+  document.getElementById('tileCircle').innerHTML = svgMarkup;
+</script>

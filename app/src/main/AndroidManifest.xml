@@ -3,10 +3,23 @@
 
     <uses-feature android:name="android.hardware.usb.host" android:required="true" />
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
+        android:name=".JoyBridgeApplication"
         android:allowBackup="true"
         android:label="@string/app_name"
         android:theme="@style/Theme.AppCompat">
+
+        <activity
+            android:name=".WelcomeActivity"
+            android:exported="false" />
 
         <activity
             android:name=".MainActivity"
@@ -30,6 +43,11 @@
             android:multiprocess="false"
             android:exported="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <service
+            android:name=".adb.WirelessAdbHelperService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
 
         <service
             android:name=".GamepadAccessibilityService"

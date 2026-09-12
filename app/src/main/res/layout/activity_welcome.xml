@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="20dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Welcome to JoyBridge"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:textSize="16sp"
+                android:lineSpacingExtra="4dp"
+                android:text="JoyBridge reads your USB game controller and turns it into a real Android gamepad that other apps (like Minecraft) recognize natively - the same way a genuine Xbox controller would work, with no per-game setup." />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="How it works" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="16sp"
+                android:lineSpacingExtra="4dp"
+                android:text="To do this without rooting the device, JoyBridge starts a small helper process with elevated (shell-level) system access, entirely on this device. It does this either through a computer connected once over USB, or through Android&#8217;s own &quot;Wireless debugging&quot; feature (found in Settings → Developer options), which you control and can turn off at any time." />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="What this does not do" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="16sp"
+                android:lineSpacingExtra="4dp"
+                android:text="No data ever leaves this device. No other app is installed. Nothing here roots the device or modifies the system partition - the helper process is temporary and stops if the device restarts." />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="First-time setup" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="16sp"
+                android:lineSpacingExtra="4dp"
+                android:text="The very first time this app runs on a device, it needs a one-time pairing step through Android's Wireless Debugging settings. This is a setup task for a parent/adult to do once - after that, using the app is a single button tap." />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="16dp"
+                android:background="#33000000" />
+
+            <CheckBox
+                android:id="@+id/agreeCheckbox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:text="I have read and understand this" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/startBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:padding="16dp"
+        android:textSize="18sp"
+        android:enabled="false"
+        android:text="Start" />
+
+</LinearLayout>

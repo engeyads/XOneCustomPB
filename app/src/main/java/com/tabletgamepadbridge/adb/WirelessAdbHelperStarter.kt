@@ -1,0 +1,130 @@
+package com.tabletgamepadbridge.adb
+
+import android.content.Context
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import androidx.annotation.RequiresApi
+import java.util.concurrent.atomic.AtomicBoolean
+
+private const val TAG = "WirelessAdbHelper"
+
+sealed class PairingProgress {
+    data object DiscoveringPairingService : PairingProgress()
+    data object Pairing : PairingProgress()
+    data class PairingFailed(val message: String) : PairingProgress()
+    data object DiscoveringConnectService : PairingProgress()
+    data object Connecting : PairingProgress()
+    data object StartingHelper : PairingProgress()
+    data object Done : PairingProgress()
+    data class Failed(val message: String) : PairingProgress()
+}
+
+/**
+ * Entirely on-device replacement for "plug into a PC and run adb shell":
+ * pairs with (or reconnects to) this same device's own Wireless Debugging
+ * service, then runs our `app_process` command to (re)start the privileged
+ * helper - all without any external computer. The one-time pairing code
+ * still has to come from Settings > Developer options > Wireless debugging
+ * (that's Android's own security design, not something to route around);
+ * everything after that is fully automatic and survives reboots.
+ */
+@RequiresApi(Build.VERSION_CODES.R)
+class WirelessAdbHelperStarter(private val context: Context) {
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val key: AdbKey by lazy {
+        AdbKey(PreferenceAdbKeyStore(context.getSharedPreferences("adbkey", Context.MODE_PRIVATE)), "joybridge")
+    }
+
+    private val appProcessCommand: String by lazy {
+        val apkPath = context.packageManager.getApplicationInfo(context.packageName, 0).sourceDir
+        "CLASSPATH=$apkPath app_process / --nice-name=tgb_privileged com.tabletgamepadbridge.PrivilegedMain"
+    }
+
+    /** Call only after pairing has already been done once (skips the pairing step). */
+    fun reconnectAndStart(onProgress: (PairingProgress) -> Unit) {
+        onProgress(PairingProgress.DiscoveringConnectService)
+        discoverPort(AdbMdns.TLS_CONNECT) { port ->
+            if (port <= 0) {
+                onProgress(PairingProgress.Failed("Could not find the Wireless Debugging connect service - is it enabled in Developer options?"))
+                return@discoverPort
+            }
+            connectAndStart(port, onProgress)
+        }
+    }
+
+    /** Full flow: pair using a fresh code, then connect and start the helper. */
+    fun pairAndStart(pairingCode: String, onProgress: (PairingProgress) -> Unit) {
+        onProgress(PairingProgress.DiscoveringPairingService)
+        discoverPort(AdbMdns.TLS_PAIRING) { pairingPort ->
+            if (pairingPort <= 0) {
+                onProgress(PairingProgress.Failed("Could not find the pairing service - make sure you tapped \"Pair device with pairing code\" first"))
+                return@discoverPort
+            }
+
+            onProgress(PairingProgress.Pairing)
+            Thread {
+                try {
+                    AdbPairingClient("127.0.0.1", pairingPort, pairingCode, key).use { client ->
+                        val ok = client.start()
+                        mainHandler.post {
+                            if (ok) {
+                                reconnectAndStart(onProgress)
+                            } else {
+                                onProgress(PairingProgress.PairingFailed("Pairing rejected - check the code and try again"))
+                            }
+                        }
+                    }
+                } catch (e: AdbInvalidPairingCodeException) {
+                    mainHandler.post { onProgress(PairingProgress.PairingFailed("Wrong pairing code")) }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Pairing failed", e)
+                    mainHandler.post { onProgress(PairingProgress.PairingFailed("Pairing failed: ${e.message}")) }
+                }
+            }.start()
+        }
+    }
+
+    private fun connectAndStart(connectPort: Int, onProgress: (PairingProgress) -> Unit) {
+        onProgress(PairingProgress.Connecting)
+        Thread {
+            try {
+                AdbClient("127.0.0.1", connectPort, key).use { adb ->
+                    adb.connect()
+                    mainHandler.post { onProgress(PairingProgress.StartingHelper) }
+                    adb.shellCommand(appProcessCommand) { output ->
+                        Log.d(TAG, "helper output: ${String(output)}")
+                    }
+                }
+                mainHandler.post { onProgress(PairingProgress.Done) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Connect/start failed", e)
+                mainHandler.post { onProgress(PairingProgress.Failed("Connect failed: ${e.message}")) }
+            }
+        }.start()
+    }
+
+    private fun discoverPort(serviceType: String, timeoutMs: Long = 10_000, callback: (Int) -> Unit) {
+        val delivered = AtomicBoolean(false)
+        var mdns: AdbMdns? = null
+
+        val timeoutRunnable = Runnable {
+            if (delivered.compareAndSet(false, true)) {
+                mdns?.stop()
+                callback(-1)
+            }
+        }
+
+        mdns = AdbMdns(context, serviceType) { port ->
+            if (port > 0 && delivered.compareAndSet(false, true)) {
+                mainHandler.removeCallbacks(timeoutRunnable)
+                mdns?.stop()
+                mainHandler.post { callback(port) }
+            }
+        }
+        mdns.start()
+        mainHandler.postDelayed(timeoutRunnable, timeoutMs)
+    }
+}

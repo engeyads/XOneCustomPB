@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="match_parent">
+
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="16dp">
 
@@ -12,26 +16,21 @@
         android:text="Enable Accessibility Service" />
 
     <Button
-        android:id="@+id/enableShizukuBtn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="Enable Shizuku" />
-
-    <TextView
-        android:id="@+id/shizukuStatusText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:textSize="14sp"
-        android:text="Shizuku: not connected" />
-
-    <Button
         android:id="@+id/connectBtn"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="16dp"
+        android:textSize="18sp"
+        android:padding="16dp"
         android:text="Connect Controller" />
+
+    <TextView
+        android:id="@+id/wirelessStatusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textSize="14sp"
+        android:text="" />
 
     <TextView
         android:id="@+id/statusText"
@@ -43,3 +42,4 @@
         android:text="Status: idle" />
 
 </LinearLayout>
+</ScrollView>
