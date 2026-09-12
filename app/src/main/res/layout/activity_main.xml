@@ -120,8 +120,8 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
             android:background="#D1D6E0" />
 
         <!-- METRICS ROW: BATTERY | LATENCY | POLL -->
@@ -221,8 +221,8 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
             android:background="#D1D6E0" />
 
         <!-- LIVE INPUT SECTION -->
@@ -238,7 +238,7 @@
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp">
+            android:layout_marginTop="4dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -256,13 +256,13 @@
                 android:fontFamily="sans-serif-black"
                 android:text="+0.00 , +0.00"
                 android:textColor="#111318"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
         </RelativeLayout>
 
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp">
+            android:layout_marginTop="2dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -280,13 +280,61 @@
                 android:fontFamily="sans-serif-black"
                 android:text="+0.00 , +0.00"
                 android:textColor="#111318"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
         </RelativeLayout>
 
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp">
+            android:layout_marginTop="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-bold"
+                android:text="LEFT TRIGGER (LT)"
+                android:textColor="#727885"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/leftTriggerValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:fontFamily="sans-serif-black"
+                android:text="0%"
+                android:textColor="#111318"
+                android:textSize="12sp" />
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-bold"
+                android:text="RIGHT TRIGGER (RT)"
+                android:textColor="#727885"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/rightTriggerValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:fontFamily="sans-serif-black"
+                android:text="0%"
+                android:textColor="#111318"
+                android:textSize="12sp" />
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -304,14 +352,14 @@
                 android:fontFamily="sans-serif-black"
                 android:text="—"
                 android:textColor="#C83232"
-                android:textSize="13sp" />
+                android:textSize="12sp" />
         </RelativeLayout>
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
             android:background="#D1D6E0" />
 
         <!-- DEADZONE SECTION -->
@@ -343,8 +391,8 @@
             android:id="@+id/deadzoneProgressBar"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="12dp"
-            android:layout_marginTop="6dp"
+            android:layout_height="10dp"
+            android:layout_marginTop="4dp"
             android:max="100"
             android:progress="27"
             android:progressDrawable="@android:drawable/progress_horizontal" />
@@ -352,8 +400,8 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
             android:background="#D1D6E0" />
 
         <!-- PRIVILEGED HELPER & BUTTONS -->
@@ -389,44 +437,43 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             android:orientation="horizontal">
 
-            <!-- Primary Red Action Button -->
             <Button
                 android:id="@+id/recenterBtn"
                 android:layout_width="0dp"
-                android:layout_height="44dp"
+                android:layout_height="40dp"
                 android:layout_weight="1.2"
                 android:backgroundTint="#EF3313"
                 android:fontFamily="sans-serif-bold"
                 android:text="Recenter sticks"
                 android:textColor="#FFFFFF"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
 
             <Button
                 android:id="@+id/connectBtn"
                 android:layout_width="0dp"
-                android:layout_height="44dp"
+                android:layout_height="40dp"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:backgroundTint="#E5E8EF"
                 android:fontFamily="sans-serif-bold"
                 android:text="Connect"
                 android:textColor="#111318"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
 
             <Button
                 android:id="@+id/openAccessibilityBtn"
                 android:layout_width="0dp"
-                android:layout_height="44dp"
+                android:layout_height="40dp"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:backgroundTint="#E5E8EF"
                 android:fontFamily="sans-serif-bold"
                 android:text="Settings"
                 android:textColor="#111318"
-                android:textSize="12sp" />
+                android:textSize="11sp" />
         </LinearLayout>
 
     </LinearLayout>

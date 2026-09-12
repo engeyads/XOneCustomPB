@@ -11,11 +11,12 @@ import android.graphics.RectF
 import android.graphics.Shader
 import android.util.AttributeSet
 import android.view.View
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * Custom Canvas view rendering an interactive Xbox-style controller matching
- * the blue electric aesthetic in the dashboard design. Highlight buttons and
- * moves thumbsticks live based on GamepadState updates.
+ * the blue electric aesthetic and custom Mars/Lightning pattern in the user's design.
  */
 class GamepadVisualizerView @JvmOverloads constructor(
     context: Context,
@@ -27,10 +28,14 @@ class GamepadVisualizerView @JvmOverloads constructor(
 
     private val bodyPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val gripPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val outlinePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val patternPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 6f
-        color = Color.parseColor("#ffffff")
+        color = Color.parseColor("#0d53ba")
+        strokeWidth = 4f
+    }
+    private val patternFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.parseColor("#0d53ba")
     }
     private val buttonBgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -67,6 +72,8 @@ class GamepadVisualizerView @JvmOverloads constructor(
         canvas.scale(scale, scale)
 
         drawControllerBody(canvas)
+        drawFaceplatePatterns(canvas)
+        drawGlossOverlay(canvas)
         drawBumpersAndTriggers(canvas)
         drawGuideAndViewMenu(canvas)
         drawDPad(canvas)
@@ -77,7 +84,6 @@ class GamepadVisualizerView @JvmOverloads constructor(
     }
 
     private fun drawControllerBody(canvas: Canvas) {
-        // Outer controller body path
         val bodyPath = Path().apply {
             moveTo(-260f, -110f)
             cubicTo(-180f, -150f, 180f, -150f, 260f, -110f)
@@ -92,7 +98,7 @@ class GamepadVisualizerView @JvmOverloads constructor(
 
         val bodyGradient = LinearGradient(
             0f, -150f, 0f, 220f,
-            Color.parseColor("#1b75eb"), Color.parseColor("#0a46ab"),
+            Color.parseColor("#1d80fd"), Color.parseColor("#0a46ab"),
             Shader.TileMode.CLAMP
         )
         bodyPaint.shader = bodyGradient
@@ -113,18 +119,96 @@ class GamepadVisualizerView @JvmOverloads constructor(
         }
         gripPaint.color = Color.WHITE
         canvas.drawPath(trimPath, gripPaint)
+    }
 
-        // Subtle decorative controller graphics
-        gripPaint.color = Color.parseColor("#2a82fa")
-        gripPaint.style = Paint.Style.STROKE
-        gripPaint.strokeWidth = 4f
-        canvas.drawCircle(-180f, 80f, 40f, gripPaint)
-        canvas.drawCircle(180f, 80f, 40f, gripPaint)
-        gripPaint.style = Paint.Style.FILL
+    private fun drawFaceplatePatterns(canvas: Canvas) {
+        // Large Mars symbol on bottom left grip
+        drawMarsSymbol(canvas, -210f, 100f, 52f, 225f, 8f)
+
+        // Large Mars symbol on right grip
+        drawMarsSymbol(canvas, 215f, 85f, 48f, 45f, 7f)
+
+        // Medium Mars symbol (top left)
+        drawMarsSymbol(canvas, -235f, -65f, 20f, 45f, 4f)
+
+        // Medium Mars symbol (below D-pad)
+        drawMarsSymbol(canvas, -35f, 80f, 18f, 225f, 3.5f)
+
+        // Small Mars symbol (near right menu button)
+        drawMarsSymbol(canvas, 235f, -65f, 15f, 45f, 3f)
+
+        // Lightning bolt symbol between D-pad and Home button
+        drawLightningBolt(canvas, -32f, -15f, 18f)
+
+        // Hollow decorative circles
+        patternPaint.strokeWidth = 3f
+        canvas.drawCircle(-205f, -25f, 16f, patternPaint)
+        canvas.drawCircle(-125f, -75f, 18f, patternPaint)
+        canvas.drawCircle(-120f, 20f, 11f, patternPaint)
+        canvas.drawCircle(10f, -85f, 13f, patternPaint)
+        canvas.drawCircle(115f, -75f, 15f, patternPaint)
+        canvas.drawCircle(155f, 70f, 16f, patternPaint)
+        canvas.drawCircle(115f, 130f, 13f, patternPaint)
+    }
+
+    private fun drawMarsSymbol(
+        canvas: Canvas, cx: Float, cy: Float, radius: Float, angleDeg: Float, strokeW: Float
+    ) {
+        patternPaint.strokeWidth = strokeW
+        canvas.drawCircle(cx, cy, radius, patternPaint)
+
+        val rad = Math.toRadians(angleDeg.toDouble())
+        val startX = cx + radius * cos(rad).toFloat()
+        val startY = cy + radius * sin(rad).toFloat()
+        val lineLen = radius * 0.9f
+        val endX = startX + lineLen * cos(rad).toFloat()
+        val endY = startY + lineLen * sin(rad).toFloat()
+
+        canvas.drawLine(startX, startY, endX, endY, patternPaint)
+
+        // Arrowhead lines
+        val headLen = radius * 0.45f
+        val headAngle1 = rad + Math.toRadians(140.0)
+        val headAngle2 = rad - Math.toRadians(140.0)
+
+        val head1X = endX + headLen * cos(headAngle1).toFloat()
+        val head1Y = endY + headLen * sin(headAngle1).toFloat()
+        val head2X = endX + headLen * cos(headAngle2).toFloat()
+        val head2Y = endY + headLen * sin(headAngle2).toFloat()
+
+        canvas.drawLine(endX, endY, head1X, head1Y, patternPaint)
+        canvas.drawLine(endX, endY, head2X, head2Y, patternPaint)
+    }
+
+    private fun drawLightningBolt(canvas: Canvas, cx: Float, cy: Float, size: Float) {
+        val boltPath = Path().apply {
+            moveTo(cx + size * 0.2f, cy - size * 0.8f)
+            lineTo(cx - size * 0.4f, cy + size * 0.05f)
+            lineTo(cx - size * 0.05f, cy + size * 0.05f)
+            lineTo(cx - size * 0.3f, cy + size * 0.8f)
+            lineTo(cx + size * 0.4f, cy - size * 0.05f)
+            lineTo(cx + size * 0.05f, cy - size * 0.05f)
+            close()
+        }
+        canvas.drawPath(boltPath, patternFillPaint)
+    }
+
+    private fun drawGlossOverlay(canvas: Canvas) {
+        // Glossy reflection arc on top-left quadrant
+        val glossPath = Path().apply {
+            moveTo(-270f, -80f)
+            cubicTo(-210f, -140f, -50f, -150f, 0f, -145f)
+            cubicTo(-100f, -120f, -180f, -80f, -260f, -20f)
+            close()
+        }
+        val glossPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#28ffffff")
+            style = Paint.Style.FILL
+        }
+        canvas.drawPath(glossPath, glossPaint)
     }
 
     private fun drawBumpersAndTriggers(canvas: Canvas) {
-        // Left Trigger & Bumper
         val ltActive = state.leftTrigger > 500
         val lbActive = state.leftBumper
         val rtActive = state.rightTrigger > 500

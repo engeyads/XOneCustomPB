@@ -20,7 +20,7 @@ import java.util.Locale
 /**
  * Reads the controller via USB-OTG (GIP protocol), then re-emits it as a
  * real virtual USB gamepad (via /dev/uhid) with a real-time Pad Link dashboard
- * matching the Xbox controller aesthetic.
+ * matching the Xbox controller aesthetic and analog trigger sensitivity.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -30,6 +30,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var wirelessStatusText: TextView
     private lateinit var leftStickCoords: TextView
     private lateinit var rightStickCoords: TextView
+    private lateinit var leftTriggerValue: TextView
+    private lateinit var rightTriggerValue: TextView
     private lateinit var lastInputText: TextView
     private lateinit var connectBtn: Button
     private lateinit var recenterBtn: Button
@@ -56,6 +58,8 @@ class MainActivity : AppCompatActivity() {
         wirelessStatusText = findViewById(R.id.wirelessStatusText)
         leftStickCoords = findViewById(R.id.leftStickCoords)
         rightStickCoords = findViewById(R.id.rightStickCoords)
+        leftTriggerValue = findViewById(R.id.leftTriggerValue)
+        rightTriggerValue = findViewById(R.id.rightTriggerValue)
         lastInputText = findViewById(R.id.lastInputText)
         connectBtn = findViewById(R.id.connectBtn)
         recenterBtn = findViewById(R.id.recenterBtn)
@@ -74,6 +78,8 @@ class MainActivity : AppCompatActivity() {
             controllerVisualizer.updateState(GamepadState())
             leftStickCoords.text = "+0.00 , +0.00"
             rightStickCoords.text = "+0.00 , +0.00"
+            leftTriggerValue.text = "0%"
+            rightTriggerValue.text = "0%"
             lastInputText.text = "—"
         }
 
@@ -218,6 +224,9 @@ class MainActivity : AppCompatActivity() {
             val rx = state.rightStickX / 32767.0f
             val ry = -state.rightStickY / 32767.0f
 
+            val ltPct = ((state.leftTrigger / 1023.0f) * 100).toInt().coerceIn(0, 100)
+            val rtPct = ((state.rightTrigger / 1023.0f) * 100).toInt().coerceIn(0, 100)
+
             determineLastInput(state)
 
             runOnUiThread {
@@ -225,6 +234,8 @@ class MainActivity : AppCompatActivity() {
 
                 leftStickCoords.text = String.format(Locale.US, "%+.2f , %+.2f", lx, ly)
                 rightStickCoords.text = String.format(Locale.US, "%+.2f , %+.2f", rx, ry)
+                leftTriggerValue.text = "$ltPct%"
+                rightTriggerValue.text = "$rtPct%"
                 lastInputText.text = lastInputName
 
                 connectedBadge.text = "CONNECTED"
@@ -250,8 +261,8 @@ class MainActivity : AppCompatActivity() {
             state.dpadDown -> lastInputName = "DPAD_DOWN"
             state.dpadLeft -> lastInputName = "DPAD_LEFT"
             state.dpadRight -> lastInputName = "DPAD_RIGHT"
-            state.leftTrigger > 200 -> lastInputName = "TRIGGER_L"
-            state.rightTrigger > 200 -> lastInputName = "TRIGGER_R"
+            state.leftTrigger > 50 -> lastInputName = "TRIGGER_L (${((state.leftTrigger / 1023.0f) * 100).toInt()}%)"
+            state.rightTrigger > 50 -> lastInputName = "TRIGGER_R (${((state.rightTrigger / 1023.0f) * 100).toInt()}%)"
             state.leftStickClick -> lastInputName = "L_THUMB_CLICK"
             state.rightStickClick -> lastInputName = "R_THUMB_CLICK"
         }
