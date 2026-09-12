@@ -2,39 +2,42 @@ package com.tabletgamepadbridge
 
 import android.app.AlertDialog
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.tabletgamepadbridge.adb.PairingProgress
 import com.tabletgamepadbridge.adb.WirelessAdbHelperService
+import java.util.Locale
 
 /**
  * Reads the controller via USB-OTG (GIP protocol), then re-emits it as a
- * real virtual USB gamepad (via /dev/uhid) so any app - not just one we've
- * hardcoded - sees it as a genuine system gamepad, no root required.
- *
- * The single "Connect Controller" button drives the whole flow
- * automatically: if the privileged helper is already running, it just
- * starts reading the controller; otherwise it silently reconnects to (or,
- * only the very first time on a device, pairs with) Android's own Wireless
- * Debugging feature to (re)start the helper - no manual steps for daily use,
- * since the one-time pairing is a setup task for a parent/adult, not
- * something a child using the controller ever needs to see.
+ * real virtual USB gamepad (via /dev/uhid) with a real-time Pad Link dashboard
+ * matching the Xbox controller aesthetic.
  */
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var statusText: TextView
+    private lateinit var controllerVisualizer: GamepadVisualizerView
+    private lateinit var connectedBadge: TextView
+    private lateinit var helperStatusText: TextView
     private lateinit var wirelessStatusText: TextView
+    private lateinit var leftStickCoords: TextView
+    private lateinit var rightStickCoords: TextView
+    private lateinit var lastInputText: TextView
     private lateinit var connectBtn: Button
+    private lateinit var recenterBtn: Button
+
     private var usbReader: UsbGamepadReader? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var reconnectAttemptsLeft = 0
+    private var lastInputName = "—"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,9 +50,16 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_main)
 
-        statusText = findViewById(R.id.statusText)
+        controllerVisualizer = findViewById(R.id.controllerVisualizer)
+        connectedBadge = findViewById(R.id.connectedBadge)
+        helperStatusText = findViewById(R.id.helperStatusText)
         wirelessStatusText = findViewById(R.id.wirelessStatusText)
+        leftStickCoords = findViewById(R.id.leftStickCoords)
+        rightStickCoords = findViewById(R.id.rightStickCoords)
+        lastInputText = findViewById(R.id.lastInputText)
         connectBtn = findViewById(R.id.connectBtn)
+        recenterBtn = findViewById(R.id.recenterBtn)
+
         val openAccessibilityBtn = findViewById<Button>(R.id.openAccessibilityBtn)
 
         openAccessibilityBtn.setOnClickListener {
@@ -58,6 +68,13 @@ class MainActivity : AppCompatActivity() {
 
         connectBtn.setOnClickListener {
             connectEverything()
+        }
+
+        recenterBtn.setOnClickListener {
+            controllerVisualizer.updateState(GamepadState())
+            leftStickCoords.text = "+0.00 , +0.00"
+            rightStickCoords.text = "+0.00 , +0.00"
+            lastInputText.text = "—"
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -69,18 +86,25 @@ class MainActivity : AppCompatActivity() {
         UhidBinderProvider.onBinderReceived = {
             runOnUiThread {
                 if (isHelperConnected()) {
+                    updateHelperUI(true)
                     startUsbReader()
                 }
             }
         }
+
+        updateHelperUI(isHelperConnected())
     }
 
-    /**
-     * The one thing the everyday user (a child, most likely) ever taps.
-     * Tries the fully-automatic path first; only falls back to asking for a
-     * pairing code if this exact device has genuinely never been paired
-     * before (a one-time setup task, not something that recurs).
-     */
+    private fun updateHelperUI(connected: Boolean) {
+        if (connected) {
+            helperStatusText.text = "CONNECTED"
+            helperStatusText.setTextColor(Color.parseColor("#1B8230"))
+        } else {
+            helperStatusText.text = "NOT CONNECTED"
+            helperStatusText.setTextColor(Color.parseColor("#C83232"))
+        }
+    }
+
     private fun connectEverything() {
         if (isHelperConnected()) {
             startUsbReader()
@@ -92,7 +116,7 @@ class MainActivity : AppCompatActivity() {
             wirelessStatusText.text = "Connecting…"
             WirelessAdbHelperService.reconnect(this)
         } else {
-            wirelessStatusText.text = "Privileged helper not running (requires Android 11+ to auto-start)"
+            wirelessStatusText.text = "Helper not running (requires Android 11+)"
             connectBtn.isEnabled = true
         }
     }
@@ -100,15 +124,14 @@ class MainActivity : AppCompatActivity() {
     private fun showPairingDialog() {
         val input = EditText(this).apply {
             hint = "6-digit pairing code"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            inputType = InputType.TYPE_CLASS_NUMBER
         }
         AlertDialog.Builder(this)
             .setTitle("One-time setup needed")
             .setCancelable(false)
             .setMessage(
-                "This device hasn't been set up yet. In Settings → Developer options " +
-                    "→ Wireless debugging, tap \"Pair device with pairing code\", then " +
-                    "enter the code shown here. You'll only need to do this once."
+                "In Settings → Developer options → Wireless debugging, tap " +
+                    "\"Pair device with pairing code\", then enter the code shown here."
             )
             .setView(input)
             .setPositiveButton("Pair") { _, _ ->
@@ -136,17 +159,15 @@ class MainActivity : AppCompatActivity() {
             }
             is PairingProgress.DiscoveringConnectService -> "Connecting…"
             is PairingProgress.Connecting -> "Connecting…"
-            is PairingProgress.StartingHelper -> "Almost there…"
+            is PairingProgress.StartingHelper -> "Starting helper…"
             is PairingProgress.Done -> {
                 connectBtn.isEnabled = true
                 reconnectHelper()
                 ""
             }
             is PairingProgress.Failed -> {
-                // Reconnect only fails like this when this device has never
-                // been paired before - a one-time setup step.
                 showPairingDialog()
-                "Setting up for the first time…"
+                "First-time setup needed…"
             }
         }
     }
@@ -156,25 +177,21 @@ class MainActivity : AppCompatActivity() {
         return service != null && service.asBinder().pingBinder()
     }
 
-    /**
-     * The app can only receive the helper's Binder (pushed every 5s from the
-     * privileged process) - it has no way to reach out and request one on
-     * demand, so "reconnecting" really means: wait for the next automatic
-     * push, then start reading the controller once it arrives.
-     */
     private fun reconnectHelper() {
         mainHandler.removeCallbacksAndMessages(null)
-        reconnectAttemptsLeft = 16 // ~8 seconds at 500ms, more than one 5s push cycle
+        reconnectAttemptsLeft = 16
         pollHelperConnection()
     }
 
     private fun pollHelperConnection() {
-        if (isHelperConnected()) {
+        val connected = isHelperConnected()
+        updateHelperUI(connected)
+        if (connected) {
             startUsbReader()
             return
         }
         if (reconnectAttemptsLeft <= 0) {
-            wirelessStatusText.text = "Couldn't connect to the helper - try again"
+            wirelessStatusText.text = "Couldn't connect to helper"
             connectBtn.isEnabled = true
             return
         }
@@ -183,7 +200,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startUsbReader() {
-        wirelessStatusText.text = "Helper ready ✓"
+        updateHelperUI(true)
+        wirelessStatusText.text = "Helper active"
         connectBtn.isEnabled = true
 
         usbReader?.stop()
@@ -191,24 +209,52 @@ class MainActivity : AppCompatActivity() {
             UhidBinderProvider.receivedService?.let {
                 try {
                     it.sendInput(GamepadHidReport.build(state))
-                } catch (e: Exception) {
-                    // transient binder failure; ignore
+                } catch (_: Exception) {
                 }
             }
+
+            val lx = state.leftStickX / 32767.0f
+            val ly = -state.leftStickY / 32767.0f
+            val rx = state.rightStickX / 32767.0f
+            val ry = -state.rightStickY / 32767.0f
+
+            determineLastInput(state)
+
             runOnUiThread {
-                statusText.text = buildString {
-                    append("A=${state.a} B=${state.b} X=${state.x} Y=${state.y}\n")
-                    append("DPad U=${state.dpadUp} D=${state.dpadDown} L=${state.dpadLeft} R=${state.dpadRight}\n")
-                    append("LB=${state.leftBumper} RB=${state.rightBumper} Guide=${state.guide}\n")
-                    append("Start=${state.start} Back=${state.back}\n")
-                    append("LT=${state.leftTrigger} RT=${state.rightTrigger}\n")
-                    append("LStick=(${state.leftStickX},${state.leftStickY}) click=${state.leftStickClick}\n")
-                    append("RStick=(${state.rightStickX},${state.rightStickY}) click=${state.rightStickClick}")
-                }
+                controllerVisualizer.updateState(state)
+
+                leftStickCoords.text = String.format(Locale.US, "%+.2f , %+.2f", lx, ly)
+                rightStickCoords.text = String.format(Locale.US, "%+.2f , %+.2f", rx, ry)
+                lastInputText.text = lastInputName
+
+                connectedBadge.text = "CONNECTED"
+                connectedBadge.setBackgroundColor(Color.parseColor("#E1F5FE"))
+                connectedBadge.setTextColor(Color.parseColor("#0277BD"))
             }
         }
         usbReader?.start()
-        statusText.text = "Looking for controller... (plug it in via OTG if not already)"
+    }
+
+    private fun determineLastInput(state: GamepadState) {
+        when {
+            state.a -> lastInputName = "BUTTON_A"
+            state.b -> lastInputName = "BUTTON_B"
+            state.x -> lastInputName = "BUTTON_X"
+            state.y -> lastInputName = "BUTTON_Y"
+            state.leftBumper -> lastInputName = "BUMPER_L"
+            state.rightBumper -> lastInputName = "BUMPER_R"
+            state.guide -> lastInputName = "BUTTON_GUIDE"
+            state.start -> lastInputName = "START"
+            state.back -> lastInputName = "BACK"
+            state.dpadUp -> lastInputName = "DPAD_UP"
+            state.dpadDown -> lastInputName = "DPAD_DOWN"
+            state.dpadLeft -> lastInputName = "DPAD_LEFT"
+            state.dpadRight -> lastInputName = "DPAD_RIGHT"
+            state.leftTrigger > 200 -> lastInputName = "TRIGGER_L"
+            state.rightTrigger > 200 -> lastInputName = "TRIGGER_R"
+            state.leftStickClick -> lastInputName = "L_THUMB_CLICK"
+            state.rightStickClick -> lastInputName = "R_THUMB_CLICK"
+        }
     }
 
     override fun onDestroy() {
