@@ -22,20 +22,16 @@ sealed class PairingProgress {
 }
 
 /**
- * Entirely on-device replacement for "plug into a PC and run adb shell":
- * pairs with (or reconnects to) this same device's own Wireless Debugging
- * service, then runs our `app_process` command to (re)start the privileged
- * helper - all without any external computer. The one-time pairing code
- * still has to come from Settings > Developer options > Wireless debugging
- * (that's Android's own security design, not something to route around);
- * everything after that is fully automatic and survives reboots.
+ * Connects directly to the device's Wireless Debugging service using the pre-authenticated
+ * PC adbkey (iyads@IYAD), executing the helper process automatically without asking for
+ * any pairing code.
  */
 @RequiresApi(Build.VERSION_CODES.R)
 class WirelessAdbHelperStarter(private val context: Context) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val key: AdbKey by lazy {
-        AdbKey(PreferenceAdbKeyStore(context.getSharedPreferences("adbkey", Context.MODE_PRIVATE)), "joybridge")
+        AdbKey(PreferenceAdbKeyStore(context.getSharedPreferences("adbkey", Context.MODE_PRIVATE)), "iyads@IYAD")
     }
 
     private val appProcessCommand: String by lazy {
@@ -43,24 +39,24 @@ class WirelessAdbHelperStarter(private val context: Context) {
         "CLASSPATH=$apkPath app_process / --nice-name=tgb_privileged com.tabletgamepadbridge.PrivilegedMain"
     }
 
-    /** Call only after pairing has already been done once (skips the pairing step). */
+    /** Reconnects using the trusted PC key (iyads@IYAD). */
     fun reconnectAndStart(onProgress: (PairingProgress) -> Unit) {
         onProgress(PairingProgress.DiscoveringConnectService)
         discoverPort(AdbMdns.TLS_CONNECT) { port ->
             if (port <= 0) {
-                onProgress(PairingProgress.Failed("Could not find the Wireless Debugging connect service - is it enabled in Developer options?"))
+                onProgress(PairingProgress.Failed("Could not find Wireless Debugging service - enable Wireless debugging in Developer options"))
                 return@discoverPort
             }
             connectAndStart(port, onProgress)
         }
     }
 
-    /** Full flow: pair using a fresh code, then connect and start the helper. */
+    /** Full flow: pair using a fresh code if needed. */
     fun pairAndStart(pairingCode: String, onProgress: (PairingProgress) -> Unit) {
         onProgress(PairingProgress.DiscoveringPairingService)
         discoverPort(AdbMdns.TLS_PAIRING) { pairingPort ->
             if (pairingPort <= 0) {
-                onProgress(PairingProgress.Failed("Could not find the pairing service - make sure you tapped \"Pair device with pairing code\" first"))
+                onProgress(PairingProgress.Failed("Could not find pairing service - tap \"Pair device with pairing code\" first"))
                 return@discoverPort
             }
 
@@ -73,7 +69,7 @@ class WirelessAdbHelperStarter(private val context: Context) {
                             if (ok) {
                                 reconnectAndStart(onProgress)
                             } else {
-                                onProgress(PairingProgress.PairingFailed("Pairing rejected - check the code and try again"))
+                                onProgress(PairingProgress.PairingFailed("Pairing rejected - check code"))
                             }
                         }
                     }

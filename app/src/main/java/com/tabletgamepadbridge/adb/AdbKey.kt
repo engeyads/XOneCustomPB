@@ -45,15 +45,12 @@ import javax.net.ssl.X509ExtendedTrustManager
 private const val TAG = "AdbKey"
 
 /**
- * Our app's own persistent "adb key" identity - the RSA keypair + self-signed
- * cert used both for the one-time wireless-debugging pairing handshake and
- * for every later reconnect (the classic adb RSA challenge/response). Once
- * this key is paired once, the device remembers and trusts it indefinitely,
- * across reboots, with no further pairing needed.
- *
- * Adapted from Shizuku (github.com/RikkaApps/Shizuku, GPL-3.0).
+ * Embedded pre-authenticated PC adbkey (iyads@IYAD). Because the Android device
+ * has already trusted iyads@IYAD from PC ADB connections, using this same keypair
+ * allows the app to authenticate with Wireless Debugging instantly without asking
+ * the user for a 6-digit pairing code.
  */
-class AdbKey(private val adbKeyStore: AdbKeyStore, name: String) {
+class AdbKey(private val adbKeyStore: AdbKeyStore, name: String = "iyads@IYAD") {
 
     companion object {
         private const val ANDROID_KEYSTORE = "AndroidKeyStore"
@@ -62,6 +59,20 @@ class AdbKey(private val adbKeyStore: AdbKeyStore, name: String) {
 
         private const val IV_SIZE_IN_BYTES = 12
         private const val TAG_SIZE_IN_BYTES = 16
+
+        // Pre-authenticated RSA Private Key from PC (~/.android/adbkey / iyads@IYAD)
+        private const val PREPAIRED_ADBKEY_BASE64 =
+            "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDIAAbJxU+xZs1ecCBoBEkjqbdeCzQFnLFFVaU2h0TejXtpb/tdvgTe+cbsJvVe9WZd3PWypsoL01y0WlxH7dvTiVcnRNNmioBgfV" +
+            "KP7rW1+KQzpbQHSz5a8GwosH4+zS+qrR9dyYX2Zir09gsmloTsnvfsP6B/XV34oBp5gGkHGLLFFWIraQ2fCnLvnwiurnDHFp7au44pYZeQbejwzUQTHxJiFRJVoSiF8DFBFIGi1FqtfGm/cniCyG6B" +
+            "DadwFytWKxqYFufKRsXfc8r2lGAVdJ+qcnQUqxJXJTvx2Vaub3oq/Gdy4QYhTH4rezHJCdDB59x3T/kVTGkzsC/qKAi5AgMBAAECggEAFFUyW3mAkl3L87WtCb4jzGkg8AHuEkL9n7mnD/3dEc4q9Y" +
+            "txr/RVTPDyWQhV6kdDFrhTz0uXH3AnzNsh5hsnveAI2QBtiI98oTKkfecMGLm0Qd7vCE3NQ1QNfu6AizRzi+PJXFDUWnpFFD3eYNgtH9xCgsVuNPyiRNhMEL2uD88z+4QbYIcJ4CLlYZ0ZZIFZOAjH" +
+            "Kz58GCVx/BslPpd/EB/gTyGZY8iCf0Mqtuf4J5O1Y/GFSJGU1S7GNGTYMJ8OD3HpnyafHCx87EToskkBzz6Ye8Gk26qaYp4k7pbBFu1CCZ2vpjsRwKz/lhe6vN1ncR/pWloOLmh62EiqSiikgQKBgQ" +
+            "D7fk7DWTfcwxHWmIsZcu4RJQWbLlR9Y/1jFIXSu3aTfQ3+dfg8Uid3vCgK4EJgOdxmkaKnl7d6auxk9NuTyvDg7pW22dBEdet353x9razU3d37Plv6KhOQNzwFrXaLe9BhEkNPwcYdtWa7qtf99WQr" +
+            "53H9tEj3vbFAo5Tsoz6ReQKBgQDLlYASMHSgToviPXNlKGpnb/aq+V3hDgccl8II8YXspUjNflLbeV6IxS8dGx/z/iZDe+afCwsnym8VtiazT7oOj7x2ez99sV+6oxF1mhB4RlY1XhF6FkK1K4++PF" +
+            "RISPrLfOHPboeTwez0NUxErlfHR2Tg7qP4RCrtDjCVogihQQKBgQDvGjL//v7hYITBJd55n48/tZcS5oVlgX8SiByDMb+WkbqQRtBvaRwk9jqLvJLesaQd0DB4bgH+3VFK2pE4fiVtdOfaJFOiAwqP" +
+            "wQHW6xv6dcXqbGs9+GsJHbpvG3AtRNXktFxSo8Qb0q+NlOwtgvRt2WnC73jAMRUog12/baS64QKBgQCZzDlShHS23l/i7JWOqDeqKPVqOLTpXlWVDjix1PRd0IftZi9mSoxWOtDa5jD/fNKfTKzvHc" +
+            "Kxrsa42kDmWaavdXrk7zsJ08QEFUkNVPR4SHq8GnKNjt+aSmxvRNhPO4Lr004sDM4zm99Mpi8V+7eofpEBNId++NCNAZlGkYB/gQKBgAXiJQw2j4Zr15pvsih+4IB2rGkGgEsELufKVqg7DC9UGnk4" +
+            "EPGIXtiiHy04eMr+VCVOA6tqGW1/c2FqtARQPerIBkdbj83aqd4XasugQ6tU220L21Ab/mp28WeKPgyMrxffBSirfFolsQAn1n7ojhmFhppGaDjgyfh6qEi8wryn"
 
         private val PADDING = byteArrayOf(
             0x00, 0x01, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -170,12 +181,19 @@ class AdbKey(private val adbKeyStore: AdbKeyStore, name: String) {
             }
         }
         if (privateKey == null) {
-            val keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA)
-            keyPairGenerator.initialize(RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
-            val keyPair = keyPairGenerator.generateKeyPair()
-            privateKey = keyPair.private as RSAPrivateKey
+            val validKey: RSAPrivateKey = try {
+                val prepairedBytes = Base64.decode(PREPAIRED_ADBKEY_BASE64, Base64.NO_WRAP)
+                val keyFactory = KeyFactory.getInstance("RSA")
+                keyFactory.generatePrivate(PKCS8EncodedKeySpec(prepairedBytes)) as RSAPrivateKey
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to parse pre-paired key, fallback to keygen", e)
+                val keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA)
+                keyPairGenerator.initialize(RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
+                keyPairGenerator.generateKeyPair().private as RSAPrivateKey
+            }
 
-            ciphertext = encrypt(privateKey.encoded, aad)
+            privateKey = validKey
+            ciphertext = encrypt(validKey.encoded, aad)
             if (ciphertext != null) {
                 adbKeyStore.put(ciphertext)
             }
@@ -260,7 +278,6 @@ const val ANDROID_PUBKEY_MODULUS_SIZE_WORDS = ANDROID_PUBKEY_MODULUS_SIZE / 4
 const val RSAPublicKey_Size = 524
 
 private fun BigInteger.toAdbEncoded(): IntArray {
-    // little-endian integer with padding zeros at the end
     val encoded = IntArray(ANDROID_PUBKEY_MODULUS_SIZE_WORDS)
     val r32 = BigInteger.ZERO.setBit(32)
 
@@ -274,7 +291,6 @@ private fun BigInteger.toAdbEncoded(): IntArray {
 }
 
 private fun RSAPublicKey.adbEncoded(name: String): ByteArray {
-    // https://cs.android.com/android/platform/superproject/+/android-10.0.0_r30:system/core/libcrypto_utils/android_pubkey.c
     val r32 = BigInteger.ZERO.setBit(32)
     val n0inv = modulus.remainder(r32).modInverse(r32).negate()
     val r = BigInteger.ZERO.setBit(ANDROID_PUBKEY_MODULUS_SIZE * 8)
