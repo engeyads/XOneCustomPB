@@ -1,6 +1,5 @@
 package com.tabletgamepadbridge
 
-import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -46,6 +45,7 @@ class MainActivity : AppCompatActivity() {
     private var reconnectAttemptsLeft = 0
     private var lastInputName = "—"
     private var staticDeadzonePct = 27
+    private var awaitingOverlayPermission = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,24 +119,36 @@ class MainActivity : AppCompatActivity() {
         updateHelperUI(isHelperConnected())
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (awaitingOverlayPermission && Settings.canDrawOverlays(this)) {
+            awaitingOverlayPermission = false
+            FloatingPairingOverlayService.show(this)
+            openWirelessDebuggingSettings()
+        }
+    }
+
     private fun startFloatingPairingOrSettings() {
         if (!Settings.canDrawOverlays(this)) {
-            AlertDialog.Builder(this)
-                .setTitle("Display Over Other Apps Needed")
-                .setMessage("To type your 6-digit Wireless Debugging code directly over Settings, please enable 'Display over other apps' for JoyBridge.")
-                .setPositiveButton("Grant Permission") { _, _ ->
-                    val intent = Intent(
-                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:$packageName")
-                    ).apply {
+            awaitingOverlayPermission = true
+            try {
+                val intent = Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                ).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+            } catch (_: Exception) {
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
                     startActivity(intent)
-                }
-                .setNegativeButton("Cancel") { _, _ ->
+                } catch (_: Exception) {
                     openWirelessDebuggingSettings()
                 }
-                .show()
+            }
         } else {
             FloatingPairingOverlayService.show(this)
             openWirelessDebuggingSettings()
@@ -144,21 +156,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openWirelessDebuggingSettings() {
-        val intents = arrayOf(
-            Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS"),
-            Intent().setClassName("com.android.settings", "com.android.settings.Settings\$WirelessDebuggingActivity"),
-            Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
-            Intent().setClassName("com.android.settings", "com.android.settings.Settings\$DevelopmentSettingsDashboardActivity"),
-            Intent(Settings.ACTION_SETTINGS)
-        )
-
-        for (intent in intents) {
-            try {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                return
-            } catch (_: Exception) {}
-        }
+        try {
+            val intent = Intent(Settings.ACTION_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (_: Exception) {}
     }
 
     private fun updateHelperUI(connected: Boolean) {
