@@ -6,14 +6,7 @@ import android.net.nsd.NsdServiceInfo
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
-import java.io.IOException
-import java.net.InetSocketAddress
-import java.net.NetworkInterface
-import java.net.ServerSocket
 
-// Adapted from Shizuku (github.com/RikkaApps/Shizuku, GPL-3.0). Discovers
-// the Wireless Debugging pairing/connect services Android itself advertises
-// over mDNS when the feature is enabled in Developer options.
 @RequiresApi(Build.VERSION_CODES.R)
 class AdbMdns(
     context: Context,
@@ -39,7 +32,11 @@ class AdbMdns(
         if (!running) return
         running = false
         if (registered) {
-            nsdManager.stopServiceDiscovery(listener)
+            try {
+                nsdManager.stopServiceDiscovery(listener)
+            } catch (e: Exception) {
+                Log.w(TAG, "Error stopping discovery", e)
+            }
         }
     }
 
@@ -52,7 +49,11 @@ class AdbMdns(
     }
 
     private fun onServiceFound(info: NsdServiceInfo) {
-        nsdManager.resolveService(info, ResolveListener(this))
+        try {
+            nsdManager.resolveService(info, ResolveListener(this))
+        } catch (e: Exception) {
+            Log.w(TAG, "Error resolving service", e)
+        }
     }
 
     private fun onServiceLost(info: NsdServiceInfo) {
@@ -60,27 +61,11 @@ class AdbMdns(
     }
 
     private fun onServiceResolved(resolvedService: NsdServiceInfo) {
-        if (running && NetworkInterface.getNetworkInterfaces()
-                .asSequence()
-                .any { networkInterface ->
-                    networkInterface.inetAddresses
-                        .asSequence()
-                        .any { resolvedService.host.hostAddress == it.hostAddress }
-                }
-            && isPortAvailable(resolvedService.port)
-        ) {
+        if (running && resolvedService.port > 0) {
+            Log.i(TAG, "Successfully resolved ADB service '${resolvedService.serviceName}' on port ${resolvedService.port}")
             serviceName = resolvedService.serviceName
             onPortFound(resolvedService.port)
         }
-    }
-
-    private fun isPortAvailable(port: Int) = try {
-        ServerSocket().use {
-            it.bind(InetSocketAddress("127.0.0.1", port), 1)
-            false
-        }
-    } catch (e: IOException) {
-        true
     }
 
     internal class DiscoveryListener(private val adbMdns: AdbMdns) : NsdManager.DiscoveryListener {
@@ -110,7 +95,9 @@ class AdbMdns(
     }
 
     internal class ResolveListener(private val adbMdns: AdbMdns) : NsdManager.ResolveListener {
-        override fun onResolveFailed(nsdServiceInfo: NsdServiceInfo, i: Int) {}
+        override fun onResolveFailed(nsdServiceInfo: NsdServiceInfo, errorCode: Int) {
+            Log.w(TAG, "onResolveFailed: errorCode=$errorCode")
+        }
 
         override fun onServiceResolved(nsdServiceInfo: NsdServiceInfo) {
             adbMdns.onServiceResolved(nsdServiceInfo)

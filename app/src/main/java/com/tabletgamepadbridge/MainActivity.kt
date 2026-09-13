@@ -8,7 +8,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
@@ -138,40 +137,12 @@ class MainActivity : AppCompatActivity() {
 
         connectBtn.isEnabled = false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            wirelessStatusText.text = "Connecting…"
+            wirelessStatusText.text = "Searching for Wireless Debugging…"
             WirelessAdbHelperService.reconnect(this)
         } else {
             wirelessStatusText.text = "Helper not running (requires Android 11+)"
             connectBtn.isEnabled = true
         }
-    }
-
-    private fun showPairingDialog() {
-        val input = EditText(this).apply {
-            hint = "6-digit pairing code"
-            inputType = InputType.TYPE_CLASS_NUMBER
-        }
-        AlertDialog.Builder(this)
-            .setTitle("One-time setup needed")
-            .setCancelable(false)
-            .setMessage(
-                "In Settings → Developer options → Wireless debugging, tap " +
-                    "\"Pair device with pairing code\", then enter the code shown here."
-            )
-            .setView(input)
-            .setPositiveButton("Pair") { _, _ ->
-                val code = input.text.toString().trim()
-                if (code.isNotEmpty()) {
-                    wirelessStatusText.text = "Pairing…"
-                    WirelessAdbHelperService.pair(this, code)
-                } else {
-                    connectBtn.isEnabled = true
-                }
-            }
-            .setNegativeButton("Cancel") { _, _ ->
-                connectBtn.isEnabled = true
-            }
-            .show()
     }
 
     private fun handleWirelessProgress(progress: PairingProgress) {
@@ -182,17 +153,17 @@ class MainActivity : AppCompatActivity() {
                 connectBtn.isEnabled = true
                 "Pairing failed: ${progress.message}"
             }
-            is PairingProgress.DiscoveringConnectService -> "Connecting…"
-            is PairingProgress.Connecting -> "Connecting…"
-            is PairingProgress.StartingHelper -> "Starting helper…"
+            is PairingProgress.DiscoveringConnectService -> "Searching for Wireless Debugging…"
+            is PairingProgress.Connecting -> "Authenticating with iyads@IYAD key…"
+            is PairingProgress.StartingHelper -> "Starting helper process…"
             is PairingProgress.Done -> {
                 connectBtn.isEnabled = true
                 reconnectHelper()
-                ""
+                "Helper started ✓"
             }
             is PairingProgress.Failed -> {
-                showPairingDialog()
-                "First-time setup needed…"
+                connectBtn.isEnabled = true
+                progress.message
             }
         }
     }
@@ -255,7 +226,6 @@ class MainActivity : AppCompatActivity() {
                 latencyText.text = "${state.latencyMs} ms"
                 pollText.text = "${state.pollHz} Hz"
 
-                // Stable Deadzone Threshold Calibration (27%)
                 deadzoneText.text = "$staticDeadzonePct%"
                 deadzoneProgressBar.progress = staticDeadzonePct
 

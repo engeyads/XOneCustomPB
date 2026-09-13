@@ -44,7 +44,7 @@ class WirelessAdbHelperStarter(private val context: Context) {
         onProgress(PairingProgress.DiscoveringConnectService)
         discoverPort(AdbMdns.TLS_CONNECT) { port ->
             if (port <= 0) {
-                onProgress(PairingProgress.Failed("Could not find Wireless Debugging service - enable Wireless debugging in Developer options"))
+                onProgress(PairingProgress.Failed("Wireless debugging port not found - make sure Wireless debugging is ON in Developer options"))
                 return@discoverPort
             }
             connectAndStart(port, onProgress)
@@ -56,7 +56,7 @@ class WirelessAdbHelperStarter(private val context: Context) {
         onProgress(PairingProgress.DiscoveringPairingService)
         discoverPort(AdbMdns.TLS_PAIRING) { pairingPort ->
             if (pairingPort <= 0) {
-                onProgress(PairingProgress.Failed("Could not find pairing service - tap \"Pair device with pairing code\" first"))
+                onProgress(PairingProgress.Failed("Could not find pairing service - tap \"Pair device with pairing code\" in Settings first"))
                 return@discoverPort
             }
 
@@ -87,6 +87,7 @@ class WirelessAdbHelperStarter(private val context: Context) {
         onProgress(PairingProgress.Connecting)
         Thread {
             try {
+                Log.i(TAG, "Connecting to Wireless Debugging on 127.0.0.1:$connectPort with iyads@IYAD key")
                 AdbClient("127.0.0.1", connectPort, key).use { adb ->
                     adb.connect()
                     mainHandler.post { onProgress(PairingProgress.StartingHelper) }
@@ -102,13 +103,14 @@ class WirelessAdbHelperStarter(private val context: Context) {
         }.start()
     }
 
-    private fun discoverPort(serviceType: String, timeoutMs: Long = 10_000, callback: (Int) -> Unit) {
+    private fun discoverPort(serviceType: String, timeoutMs: Long = 8_000, callback: (Int) -> Unit) {
         val delivered = AtomicBoolean(false)
         var mdns: AdbMdns? = null
 
         val timeoutRunnable = Runnable {
             if (delivered.compareAndSet(false, true)) {
                 mdns?.stop()
+                Log.w(TAG, "mDNS discovery timed out for $serviceType")
                 callback(-1)
             }
         }
@@ -117,6 +119,7 @@ class WirelessAdbHelperStarter(private val context: Context) {
             if (port > 0 && delivered.compareAndSet(false, true)) {
                 mainHandler.removeCallbacks(timeoutRunnable)
                 mdns?.stop()
+                Log.i(TAG, "Found mDNS $serviceType on port $port")
                 mainHandler.post { callback(port) }
             }
         }
