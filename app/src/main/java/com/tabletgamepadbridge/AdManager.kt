@@ -14,10 +14,9 @@ import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 private const val TAG = "AdManager"
 
 /**
- * Manages Interstitial Ads for free users (eas2012@gmail.com AdMob account):
- * - Plays 3 ads in a row on app startup & when tapping Connect.
- * - Gives 30 seconds of free usage time after each 3-ad series.
- * - Stops completely when Pro ($5 USD) is purchased.
+ * Preloads a queue of 3 Interstitial Ads and plays them sequentially (Ad 1 -> Ad 2 -> Ad 3)
+ * without closing back to the app until all 3 ads in the queue have completed.
+ * Followed by 30 seconds of free usage time.
  */
 class AdManager(
     private val activity: Activity,
@@ -26,52 +25,51 @@ class AdManager(
     companion object {
         // REPLACE WITH YOUR REAL ADMOB INTERSTITIAL AD UNIT ID FROM eas2012@gmail.com ACCOUNT
         const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
-        private const val USAGE_INTERVAL_MS = 30_000L // 30 seconds of free usage between ad series
-        private const val ADS_PER_SERIES = 3 // 3 ads in a row per series
+        private const val USAGE_INTERVAL_MS = 30_000L // 30 seconds of free usage between ad queues
+        private const val ADS_PER_SERIES = 3 // 3 ads per queue
     }
 
-    private var interstitialAd: InterstitialAd? = null
+    private val adQueue = mutableListOf<InterstitialAd>()
     private val handler = Handler(Looper.getMainLooper())
     private var isAdLoading = false
-    private var adsInCurrentSeriesCount = 0
     private var isSeriesPlaying = false
+    private var adsInCurrentSeriesCount = 0
 
     private val usageTimerRunnable = Runnable {
         if (isProPurchased() || isSeriesPlaying) return@Runnable
-        Log.i(TAG, "30-second usage timer ended. Starting 3-ad series.")
+        Log.i(TAG, "30-second usage timer ended. Starting 3-ad queue.")
         startAdSeries()
     }
 
     fun startAdLoop() {
         if (isProPurchased()) return
-        preloadAd()
-        // Play 3-ad series on app startup
+        fillAdQueue()
         handler.postDelayed({ startAdSeries() }, 1_500L)
     }
 
     fun onConnectTapped() {
         if (isProPurchased() || isSeriesPlaying) return
-        Log.i(TAG, "Connect tapped - triggering 3-ad series")
+        Log.i(TAG, "Connect tapped - triggering 3-ad queue")
         startAdSeries()
     }
 
     fun stopAdLoop() {
         handler.removeCallbacks(usageTimerRunnable)
-        interstitialAd = null
+        adQueue.clear()
         isSeriesPlaying = false
         adsInCurrentSeriesCount = 0
     }
 
     fun startAdSeries() {
         if (isProPurchased() || isSeriesPlaying) return
-        handler.removeCallbacks(usageTimerRunnable) // Cancel pending 30s timer
+        handler.removeCallbacks(usageTimerRunnable)
         isSeriesPlaying = true
         adsInCurrentSeriesCount = 0
-        playNextAdInSeries()
+        playNextInQueue()
     }
 
-    private fun preloadAd() {
-        if (isProPurchased() || isAdLoading || interstitialAd != null) return
+    private fun fillAdQueue() {
+        if (isProPurchased() || isAdLoading || adQueue.size >= ADS_PER_SERIES) return
 
         isAdLoading = true
         val adRequest = AdRequest.Builder().build()
@@ -81,56 +79,56 @@ class AdManager(
             adRequest,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
-                    interstitialAd = ad
+                    adQueue.add(ad)
                     isAdLoading = false
-                    Log.i(TAG, "Interstitial Ad loaded")
+                    Log.i(TAG, "Loaded ad into queue (total: ${adQueue.size}/$ADS_PER_SERIES)")
+                    if (adQueue.size < ADS_PER_SERIES) {
+                        fillAdQueue()
+                    }
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
-                    interstitialAd = null
                     isAdLoading = false
-                    Log.w(TAG, "Interstitial Ad failed to load: ${error.message}")
+                    Log.w(TAG, "Ad queue load failed: ${error.message}")
                 }
             }
         )
     }
 
-    private fun playNextAdInSeries() {
+    private fun playNextInQueue() {
         if (isProPurchased()) {
             stopAdLoop()
             return
         }
 
         if (adsInCurrentSeriesCount >= ADS_PER_SERIES) {
-            Log.i(TAG, "Finished series of $ADS_PER_SERIES ads. Starting $USAGE_INTERVAL_MS ms usage timer.")
+            Log.i(TAG, "Completed 3-ad queue series. User gets 30 seconds of free usage.")
             isSeriesPlaying = false
             adsInCurrentSeriesCount = 0
-            preloadAd()
+            fillAdQueue()
             handler.postDelayed(usageTimerRunnable, USAGE_INTERVAL_MS)
             return
         }
 
-        val ad = interstitialAd
+        val ad = if (adQueue.isNotEmpty()) adQueue.removeAt(0) else null
         if (ad != null) {
             ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
-                    interstitialAd = null
                     adsInCurrentSeriesCount++
-                    preloadAd()
-                    handler.postDelayed({ playNextAdInSeries() }, 1_000L)
+                    fillAdQueue()
+                    playNextInQueue()
                 }
 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                    interstitialAd = null
                     adsInCurrentSeriesCount++
-                    preloadAd()
-                    handler.postDelayed({ playNextAdInSeries() }, 1_000L)
+                    fillAdQueue()
+                    playNextInQueue()
                 }
             }
             ad.show(activity)
         } else {
-            preloadAd()
-            handler.postDelayed({ playNextAdInSeries() }, 2_000L)
+            fillAdQueue()
+            handler.postDelayed({ playNextInQueue() }, 1_500L)
         }
     }
 }
