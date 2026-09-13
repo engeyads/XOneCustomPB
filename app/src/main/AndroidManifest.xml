@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".JoyBridgeApplication"
@@ -46,6 +47,11 @@
 
         <service
             android:name=".adb.WirelessAdbHelperService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".FloatingPairingOverlayService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 

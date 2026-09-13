@@ -3,12 +3,12 @@ package com.tabletgamepadbridge
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
@@ -20,7 +20,8 @@ import java.util.Locale
 
 /**
  * Reads the controller via USB-OTG (GIP protocol), then re-emits it as a
- * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics.
+ * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics
+ * and a floating window pairing overlay for tablets that disable split-screen.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -79,7 +80,7 @@ class MainActivity : AppCompatActivity() {
         val welcomeBtn = findViewById<Button>(R.id.welcomeBtn)
 
         openDevSettingsBtn.setOnClickListener {
-            openWirelessDebuggingSettings()
+            startFloatingPairingOrSettings()
         }
 
         welcomeBtn.setOnClickListener {
@@ -119,17 +120,45 @@ class MainActivity : AppCompatActivity() {
         updateHelperUI(isHelperConnected())
     }
 
+    private fun startFloatingPairingOrSettings() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            AlertDialog.Builder(this)
+                .setTitle("Display Over Other Apps Needed")
+                .setMessage("To type your 6-digit Wireless Debugging code directly over Settings, please enable 'Display over other apps' for JoyBridge.")
+                .setPositiveButton("Grant Permission") { _, _ ->
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                }
+                .setNegativeButton("Cancel") { _, _ ->
+                    openWirelessDebuggingSettings()
+                }
+                .show()
+        } else {
+            FloatingPairingOverlayService.show(this)
+            openWirelessDebuggingSettings()
+        }
+    }
+
     private fun openWirelessDebuggingSettings() {
         try {
-            val intent = Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS")
+            val intent = Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
             startActivity(intent)
         } catch (_: Exception) {
             try {
-                val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
                 startActivity(intent)
             } catch (_: Exception) {
                 try {
-                    val intent = Intent(Settings.ACTION_SETTINGS)
+                    val intent = Intent(Settings.ACTION_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
                     startActivity(intent)
                 } catch (_: Exception) {}
             }
@@ -163,34 +192,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showPairingDialog() {
-        val input = EditText(this).apply {
-            hint = "6-digit pairing code"
-            inputType = InputType.TYPE_CLASS_NUMBER
-        }
-        AlertDialog.Builder(this)
-            .setTitle("One-time pairing needed")
-            .setCancelable(false)
-            .setMessage(
-                "Tap 'Open Settings' to view your 6-digit Wireless Debugging pairing code, then enter it below."
-            )
-            .setView(input)
-            .setNeutralButton("Open Settings") { _, _ ->
-                openWirelessDebuggingSettings()
-                connectBtn.isEnabled = true
-            }
-            .setPositiveButton("Pair") { _, _ ->
-                val code = input.text.toString().trim()
-                if (code.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    wirelessStatusText.text = "Pairing…"
-                    WirelessAdbHelperService.pair(this, code)
-                } else {
-                    connectBtn.isEnabled = true
-                }
-            }
-            .setNegativeButton("Cancel") { _, _ ->
-                connectBtn.isEnabled = true
-            }
-            .show()
+        startFloatingPairingOrSettings()
     }
 
     private fun handleWirelessProgress(progress: PairingProgress) {

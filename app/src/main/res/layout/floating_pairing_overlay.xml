@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/overlayRoot"
+    android:layout_width="320dp"
+    android:layout_height="wrap_content"
+    android:background="#1E222A"
+    android:elevation="12dp"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- HEADER / DRAG BAR -->
+    <RelativeLayout
+        android:id="@+id/overlayHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#2C323D"
+        android:padding="10dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-black"
+            android:text="🎮 JoyBridge Pairing"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/closeOverlayBtn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:fontFamily="sans-serif-bold"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:text="✕"
+            android:textColor="#FF5252"
+            android:textSize="16sp" />
+    </RelativeLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:fontFamily="sans-serif"
+        android:text="Enter the 6-digit pairing code shown in Settings below:"
+        android:textColor="#C0C6D0"
+        android:textSize="12sp" />
+
+    <EditText
+        android:id="@+id/overlayCodeInput"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="10dp"
+        android:background="#2C323D"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:hint="123456"
+        android:inputType="number"
+        android:maxLength="6"
+        android:textColor="#00E5FF"
+        android:textColorHint="#606875"
+        android:textSize="20sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/overlaySettingsBtn"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:backgroundTint="#3A4250"
+            android:fontFamily="sans-serif-bold"
+            android:text="Settings"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/overlayPairBtn"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1.2"
+            android:layout_marginStart="8dp"
+            android:backgroundTint="#00E5FF"
+            android:fontFamily="sans-serif-bold"
+            android:text="Pair"
+            android:textColor="#101820"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+</LinearLayout>
