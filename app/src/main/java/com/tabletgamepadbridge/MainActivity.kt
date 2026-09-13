@@ -1,5 +1,6 @@
 package com.tabletgamepadbridge
 
+import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -8,18 +9,23 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.view.View
 import android.widget.Button
-import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.AdView
 import com.tabletgamepadbridge.adb.PairingProgress
 import com.tabletgamepadbridge.adb.WirelessAdbHelperService
 import java.util.Locale
 
 /**
- * Reads the controller via USB-OTG (GIP protocol), then re-emits it as a
- * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics.
+ * Reads the controller via USB-OTG (GIP protocol), re-emits it via UHID,
+ * and manages AdMob ads (15s automatic interstitial loop for free users) &
+ * Google Play $5 USD One-Time In-App Purchase to remove all ads.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -37,10 +43,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var leftTriggerValue: TextView
     private lateinit var rightTriggerValue: TextView
     private lateinit var lastInputText: TextView
+    private lateinit var buyProBtn: TextView
+    private lateinit var adContainer: FrameLayout
+    private lateinit var adView: AdView
     private lateinit var connectBtn: Button
     private lateinit var recenterBtn: Button
 
     private var usbReader: UsbGamepadReader? = null
+    private var billingManager: BillingManager? = null
+    private var adManager: AdManager? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var reconnectAttemptsLeft = 0
     private var lastInputName = "—"
@@ -72,6 +83,9 @@ class MainActivity : AppCompatActivity() {
         leftTriggerValue = findViewById(R.id.leftTriggerValue)
         rightTriggerValue = findViewById(R.id.rightTriggerValue)
         lastInputText = findViewById(R.id.lastInputText)
+        buyProBtn = findViewById(R.id.buyProBtn)
+        adContainer = findViewById(R.id.adContainer)
+        adView = findViewById(R.id.adView)
         connectBtn = findViewById(R.id.connectBtn)
         recenterBtn = findViewById(R.id.recenterBtn)
 
@@ -101,6 +115,19 @@ class MainActivity : AppCompatActivity() {
             lastInputText.text = "—"
         }
 
+        // Initialize Google Play Billing ($5 USD One-Time Remove Ads)
+        billingManager = BillingManager(this) { isPurchased ->
+            updateProUI(isPurchased)
+        }
+        billingManager?.startConnection()
+
+        val isPro = BillingManager.isProPurchasedLocally(this)
+        updateProUI(isPro)
+
+        // Initialize 15-second Interstitial Ad Loop for free users
+        adManager = AdManager(this) { BillingManager.isProPurchasedLocally(this) }
+        adManager?.startAdLoop()
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WirelessAdbHelperService.onProgress = { progress ->
                 runOnUiThread { handleWirelessProgress(progress) }
@@ -117,6 +144,45 @@ class MainActivity : AppCompatActivity() {
         }
 
         updateHelperUI(isHelperConnected())
+    }
+
+    private fun updateProUI(isPro: Boolean) {
+        if (isPro) {
+            adContainer.visibility = View.GONE
+            adManager?.stopAdLoop()
+
+            buyProBtn.text = "⭐ PRO"
+            buyProBtn.setBackgroundColor(Color.parseColor("#4CAF50"))
+            buyProBtn.setTextColor(Color.WHITE)
+            buyProBtn.setOnClickListener {
+                Toast.makeText(this, "PRO Version Active - Ads Removed ✓", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            adContainer.visibility = View.VISIBLE
+            buyProBtn.text = "⭐ Remove Ads ($5)"
+            buyProBtn.setBackgroundColor(Color.parseColor("#FFC107"))
+            buyProBtn.setTextColor(Color.parseColor("#212121"))
+            buyProBtn.setOnClickListener {
+                showPurchaseDialog()
+            }
+            val adRequest = AdRequest.Builder().build()
+            adView.loadAd(adRequest)
+        }
+    }
+
+    private fun showPurchaseDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("⭐ Upgrade to Pro ($5 USD)")
+            .setMessage("Enjoy an ad-free experience permanently across all your devices with a one-time $5 USD purchase.")
+            .setPositiveButton("Buy $5 USD") { _, _ ->
+                billingManager?.launchPurchaseFlow()
+            }
+            .setNeutralButton("Restore Purchase") { _, _ ->
+                billingManager?.startConnection()
+                Toast.makeText(this, "Checking Google Account for purchases…", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Close", null)
+            .show()
     }
 
     override fun onResume() {
@@ -320,6 +386,8 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         usbReader?.stop()
+        billingManager?.destroy()
+        adManager?.stopAdLoop()
         UhidBinderProvider.onBinderReceived = null
         WirelessAdbHelperService.onProgress = null
         mainHandler.removeCallbacksAndMessages(null)

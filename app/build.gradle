@@ -59,6 +59,10 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
 
+    // Google AdMob Ads & Google Play In-App Purchase ($5 USD)
+    implementation 'com.google.android.gms:play-services-ads:23.3.0'
+    implementation 'com.android.billingclient:billing-ktx:6.2.1'
+
     // For the Android wireless-debugging pairing handshake (SPAKE2 native
     // crypto + the classic ADB RSA-auth reconnect protocol), adapted from
     // Shizuku (github.com/RikkaApps/Shizuku, GPL-3.0).
