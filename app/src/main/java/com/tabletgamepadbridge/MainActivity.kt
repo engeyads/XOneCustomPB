@@ -20,8 +20,7 @@ import java.util.Locale
 
 /**
  * Reads the controller via USB-OTG (GIP protocol), then re-emits it as a
- * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics
- * and a floating window pairing overlay for tablets that disable split-screen.
+ * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -121,7 +120,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startFloatingPairingOrSettings() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+        if (!Settings.canDrawOverlays(this)) {
             AlertDialog.Builder(this)
                 .setTitle("Display Over Other Apps Needed")
                 .setMessage("To type your 6-digit Wireless Debugging code directly over Settings, please enable 'Display over other apps' for JoyBridge.")
@@ -129,7 +128,9 @@ class MainActivity : AppCompatActivity() {
                     val intent = Intent(
                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         Uri.parse("package:$packageName")
-                    )
+                    ).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
                     startActivity(intent)
                 }
                 .setNegativeButton("Cancel") { _, _ ->
@@ -144,13 +145,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun openWirelessDebuggingSettings() {
         try {
-            val intent = Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS").apply {
+            val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
         } catch (_: Exception) {
             try {
-                val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply {
+                val intent = Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS").apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 startActivity(intent)
