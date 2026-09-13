@@ -10,7 +10,8 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
 /**
- * First-run explainer page with custom electric blue theme and GitHub repository link.
+ * First-run Agreement & Explainer page.
+ * Shown automatically on first launch until agreed.
  */
 class WelcomeActivity : AppCompatActivity() {
 
@@ -31,6 +32,14 @@ class WelcomeActivity : AppCompatActivity() {
         val agreeCheckbox = findViewById<CheckBox>(R.id.agreeCheckbox)
         val startBtn = findViewById<Button>(R.id.startBtn)
         val githubLinkText = findViewById<TextView>(R.id.githubLinkText)
+
+        // If the user has already agreed previously, pre-check the box and enable Continue button
+        val alreadyAgreed = hasAgreed(this)
+        if (alreadyAgreed) {
+            agreeCheckbox.isChecked = true
+            startBtn.isEnabled = true
+            startBtn.text = "Continue"
+        }
 
         githubLinkText.setOnClickListener {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL))

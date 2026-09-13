@@ -77,13 +77,13 @@ class MainActivity : AppCompatActivity() {
         recenterBtn = findViewById(R.id.recenterBtn)
 
         val openDevSettingsBtn = findViewById<Button>(R.id.openDevSettingsBtn)
-        val welcomeBtn = findViewById<Button>(R.id.welcomeBtn)
+        val agreementBtn = findViewById<Button>(R.id.agreementBtn)
 
         openDevSettingsBtn.setOnClickListener {
             startFloatingPairingOrSettings()
         }
 
-        welcomeBtn.setOnClickListener {
+        agreementBtn.setOnClickListener {
             startActivity(Intent(this, WelcomeActivity::class.java))
         }
 

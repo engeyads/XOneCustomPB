@@ -476,14 +476,14 @@
                 android:textSize="11sp" />
 
             <Button
-                android:id="@+id/welcomeBtn"
+                android:id="@+id/agreementBtn"
                 android:layout_width="0dp"
                 android:layout_height="40dp"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:backgroundTint="#E5E8EF"
                 android:fontFamily="sans-serif-bold"
-                android:text="Welcome"
+                android:text="Agreement"
                 android:textColor="#111318"
                 android:textSize="11sp" />
         </LinearLayout>

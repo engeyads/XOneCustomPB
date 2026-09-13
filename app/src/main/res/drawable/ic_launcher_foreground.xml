@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- ROTATED 35 DEGREES -->
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:rotation="35">
+
+        <!-- CONTROLLER BODY -->
+        <path
+            android:fillColor="#1D80FD"
+            android:pathData="M24,36 C34,30 74,30 84,36 C92,41 96,56 93,71 C90,83 79,86 71,84 C63,82 57,63 54,63 C51,63 45,82 37,84 C29,86 18,83 15,71 C12,56 16,41 24,36 Z" />
+
+        <!-- WHITE TRIM -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M20,71 C26,82 35,88 41,82 C49,76 51,66 54,66 C57,66 59,76 67,82 C73,88 82,82 88,71 C83,83 71,90 65,83 C59,74 56,69 54,69 C52,69 49,74 43,83 C37,90 25,83 20,71 Z" />
+
+        <!-- LEFT STICK WELL & CAP -->
+        <path
+            android:fillColor="#344C5F"
+            android:pathData="M32,46m-6,0a6,6 0 1,0 12,0a6,6 0 1,0 -12,0" />
+        <path
+            android:fillColor="#52708A"
+            android:pathData="M32,46m-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0" />
+
+        <!-- RIGHT STICK WELL & CAP -->
+        <path
+            android:fillColor="#344C5F"
+            android:pathData="M66,61m-6,0a6,6 0 1,0 12,0a6,6 0 1,0 -12,0" />
+        <path
+            android:fillColor="#52708A"
+            android:pathData="M66,61m-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0" />
+
+        <!-- WHITE D-PAD -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M40,57h6v12h-6z M37,60h12v6h-12z" />
+
+        <!-- ABXY BUTTONS -->
+        <!-- Y (Yellow) -->
+        <path
+            android:fillColor="#E6B800"
+            android:pathData="M76,42m-3,0a3,3 0 1,0 6,0a3,3 0 1,0 -6,0" />
+        <!-- X (Blue) -->
+        <path
+            android:fillColor="#2A82FA"
+            android:pathData="M70,48m-3,0a3,3 0 1,0 6,0a3,3 0 1,0 -6,0" />
+        <!-- B (Red) -->
+        <path
+            android:fillColor="#E63939"
+            android:pathData="M82,48m-3,0a3,3 0 1,0 6,0a3,3 0 1,0 -6,0" />
+        <!-- A (Green) -->
+        <path
+            android:fillColor="#33CD56"
+            android:pathData="M76,54m-3,0a3,3 0 1,0 6,0a3,3 0 1,0 -6,0" />
+
+        <!-- GLOWING GUIDE BUTTON -->
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M54,42m-4.5,0a4.5,4.5 0 1,0 9,0a4.5,4.5 0 1,0 -9,0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,42m-3,0a3,3 0 1,0 6,0a3,3 0 1,0 -6,0" />
+
+        <!-- MARS SYMBOL (♂) ACCENT -->
+        <path
+            android:fillColor="#0D53BA"
+            android:strokeWidth="1.2"
+            android:strokeColor="#0D53BA"
+            android:pathData="M27,67m-3.5,0a3.5,3.5 0 1,0 7,0a3.5,3.5 0 1,0 -7,0 M29.5,64.5 L34,62 M34,62 L32,62 M34,62 L34,64" />
+
+        <!-- LIGHTNING BOLT (⚡) ACCENT -->
+        <path
+            android:fillColor="#0D53BA"
+            android:pathData="M48,50 L46,54 L48,54 L47,58 L50,53 L48.5,53 Z" />
+
+    </group>
+</vector>

@@ -1,153 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#0A2C66"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
 
-    <ScrollView
+    <!-- CUSTOM FACEPLATE PATTERN BACKGROUND -->
+    <com.tabletgamepadbridge.WelcomePatternBackgroundView
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="28dp">
+        android:layout_height="match_parent" />
 
-        <LinearLayout
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:padding="28dp">
 
-            <!-- HEADER CARD -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="#15428F"
-                android:padding="20dp"
                 android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- HEADER CARD -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-black"
-                    android:text="Welcome to JoyBridge"
-                    android:textColor="#FFFFFF"
-                    android:textSize="26sp"
-                    android:letterSpacing="0.02" />
+                    android:background="#15428F"
+                    android:padding="20dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-black"
+                        android:text="Welcome to JoyBridge"
+                        android:textColor="#FFFFFF"
+                        android:textSize="26sp"
+                        android:letterSpacing="0.02" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Rootless Xbox 2.4GHz GIP Gamepad Driver &amp; Bridge"
+                        android:textColor="#8BB6FC"
+                        android:textSize="14sp" />
+
+                    <!-- GITHUB REPO LINK BADGE -->
+                    <TextView
+                        android:id="@+id/githubLinkText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:background="#1B55B3"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:fontFamily="sans-serif-bold"
+                        android:paddingStart="14dp"
+                        android:paddingTop="8dp"
+                        android:paddingEnd="14dp"
+                        android:paddingBottom="8dp"
+                        android:text="🔗 github.com/engeyads/XOneCustomPB"
+                        android:textColor="#00E5FF"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <!-- DETAILS SECTION -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:fontFamily="sans-serif-bold"
+                    android:text="How It Works"
+                    android:textColor="#8BB6FC"
+                    android:textSize="16sp" />
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:fontFamily="sans-serif-medium"
-                    android:text="Rootless Xbox 2.4GHz GIP Gamepad Driver &amp; Bridge"
-                    android:textColor="#8BB6FC"
+                    android:fontFamily="sans-serif"
+                    android:lineSpacingExtra="4dp"
+                    android:text="JoyBridge reads raw GIP protocol inputs from your 2.4GHz Xbox wireless controller dongle over USB-OTG and maps them directly into a Linux kernel virtual input device (/dev/uhid). Apps and games like Minecraft see it as a native, system-wide gamepad."
+                    android:textColor="#E0E6F0"
                     android:textSize="14sp" />
 
-                <!-- GITHUB REPO LINK BADGE -->
                 <TextView
-                    android:id="@+id/githubLinkText"
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:background="#1B55B3"
-                    android:clickable="true"
-                    android:focusable="true"
+                    android:layout_marginTop="18dp"
                     android:fontFamily="sans-serif-bold"
-                    android:paddingStart="14dp"
-                    android:paddingTop="8dp"
-                    android:paddingEnd="14dp"
-                    android:paddingBottom="8dp"
-                    android:text="🔗 github.com/engeyads/XOneCustomPB"
-                    android:textColor="#00E5FF"
-                    android:textSize="13sp" />
+                    android:text="Privileged Helper &amp; Security"
+                    android:textColor="#8BB6FC"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="sans-serif"
+                    android:lineSpacingExtra="4dp"
+                    android:text="To emit virtual input without rooting, JoyBridge starts a lightweight local helper process via Android's Wireless Debugging. Everything stays entirely on your device — no data ever leaves your tablet or phone."
+                    android:textColor="#E0E6F0"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
+                    android:fontFamily="sans-serif-bold"
+                    android:text="One-Time Setup"
+                    android:textColor="#8BB6FC"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="sans-serif"
+                    android:lineSpacingExtra="4dp"
+                    android:text="The first time you run this on a device, enter the 6-digit wireless pairing code from Developer options once. After that single setup step, the app connects automatically with one tap."
+                    android:textColor="#E0E6F0"
+                    android:textSize="14sp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="#1F488C" />
+
+                <CheckBox
+                    android:id="@+id/agreeCheckbox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="I understand and agree to proceed"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp" />
+
             </LinearLayout>
+        </ScrollView>
 
-            <!-- DETAILS SECTION -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:fontFamily="sans-serif-bold"
-                android:text="How It Works"
-                android:textColor="#8BB6FC"
-                android:textSize="16sp" />
+        <Button
+            android:id="@+id/startBtn"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_margin="20dp"
+            android:backgroundTint="#00E5FF"
+            android:enabled="false"
+            android:fontFamily="sans-serif-bold"
+            android:text="Start"
+            android:textColor="#0A2C66"
+            android:textSize="16sp" />
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:fontFamily="sans-serif"
-                android:lineSpacingExtra="4dp"
-                android:text="JoyBridge reads raw GIP protocol inputs from your 2.4GHz Xbox wireless controller dongle over USB-OTG and maps them directly into a Linux kernel virtual input device (/dev/uhid). Apps and games like Minecraft see it as a native, system-wide gamepad."
-                android:textColor="#E0E6F0"
-                android:textSize="14sp" />
+    </LinearLayout>
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:fontFamily="sans-serif-bold"
-                android:text="Privileged Helper &amp; Security"
-                android:textColor="#8BB6FC"
-                android:textSize="16sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:fontFamily="sans-serif"
-                android:lineSpacingExtra="4dp"
-                android:text="To emit virtual input without rooting, JoyBridge starts a lightweight local helper process via Android's Wireless Debugging. Everything stays entirely on your device — no data ever leaves your tablet or phone."
-                android:textColor="#E0E6F0"
-                android:textSize="14sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:fontFamily="sans-serif-bold"
-                android:text="One-Time Setup"
-                android:textColor="#8BB6FC"
-                android:textSize="16sp" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:fontFamily="sans-serif"
-                android:lineSpacingExtra="4dp"
-                android:text="The first time you run this on a device, enter the 6-digit wireless pairing code from Developer options once. After that single setup step, the app connects automatically with one tap."
-                android:textColor="#E0E6F0"
-                android:textSize="14sp" />
-
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginTop="24dp"
-                android:layout_marginBottom="16dp"
-                android:background="#1F488C" />
-
-            <CheckBox
-                android:id="@+id/agreeCheckbox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:text="I understand and agree to proceed"
-                android:textColor="#FFFFFF"
-                android:textSize="15sp" />
-
-        </LinearLayout>
-    </ScrollView>
-
-    <Button
-        android:id="@+id/startBtn"
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_margin="20dp"
-        android:backgroundTint="#00E5FF"
-        android:enabled="false"
-        android:fontFamily="sans-serif-bold"
-        android:text="Start"
-        android:textColor="#0A2C66"
-        android:textSize="16sp" />
-
-</LinearLayout>
+</FrameLayout>
