@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ProgressBar
@@ -19,8 +20,7 @@ import java.util.Locale
 
 /**
  * Reads the controller via USB-OTG (GIP protocol), then re-emits it as a
- * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics
- * for battery, latency, poll rate, and fixed deadzone calibration.
+ * real virtual USB gamepad (via /dev/uhid) with real-time live input metrics.
  */
 class MainActivity : AppCompatActivity() {
 
@@ -75,11 +75,11 @@ class MainActivity : AppCompatActivity() {
         connectBtn = findViewById(R.id.connectBtn)
         recenterBtn = findViewById(R.id.recenterBtn)
 
-        val openAccessibilityBtn = findViewById<Button>(R.id.openAccessibilityBtn)
+        val openDevSettingsBtn = findViewById<Button>(R.id.openDevSettingsBtn)
         val welcomeBtn = findViewById<Button>(R.id.welcomeBtn)
 
-        openAccessibilityBtn.setOnClickListener {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        openDevSettingsBtn.setOnClickListener {
+            openWirelessDebuggingSettings()
         }
 
         welcomeBtn.setOnClickListener {
@@ -119,6 +119,23 @@ class MainActivity : AppCompatActivity() {
         updateHelperUI(isHelperConnected())
     }
 
+    private fun openWirelessDebuggingSettings() {
+        try {
+            val intent = Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS")
+            startActivity(intent)
+        } catch (_: Exception) {
+            try {
+                val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)
+                startActivity(intent)
+            } catch (_: Exception) {
+                try {
+                    val intent = Intent(Settings.ACTION_SETTINGS)
+                    startActivity(intent)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
     private fun updateHelperUI(connected: Boolean) {
         if (connected) {
             helperStatusText.text = "CONNECTED"
@@ -145,6 +162,37 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showPairingDialog() {
+        val input = EditText(this).apply {
+            hint = "6-digit pairing code"
+            inputType = InputType.TYPE_CLASS_NUMBER
+        }
+        AlertDialog.Builder(this)
+            .setTitle("One-time pairing needed")
+            .setCancelable(false)
+            .setMessage(
+                "Tap 'Open Settings' to view your 6-digit Wireless Debugging pairing code, then enter it below."
+            )
+            .setView(input)
+            .setNeutralButton("Open Settings") { _, _ ->
+                openWirelessDebuggingSettings()
+                connectBtn.isEnabled = true
+            }
+            .setPositiveButton("Pair") { _, _ ->
+                val code = input.text.toString().trim()
+                if (code.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    wirelessStatusText.text = "Pairing…"
+                    WirelessAdbHelperService.pair(this, code)
+                } else {
+                    connectBtn.isEnabled = true
+                }
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                connectBtn.isEnabled = true
+            }
+            .show()
+    }
+
     private fun handleWirelessProgress(progress: PairingProgress) {
         wirelessStatusText.text = when (progress) {
             is PairingProgress.DiscoveringPairingService -> "Looking for pairing service…"
@@ -154,7 +202,7 @@ class MainActivity : AppCompatActivity() {
                 "Pairing failed: ${progress.message}"
             }
             is PairingProgress.DiscoveringConnectService -> "Searching for Wireless Debugging…"
-            is PairingProgress.Connecting -> "Authenticating with iyads@IYAD key…"
+            is PairingProgress.Connecting -> "Authenticating with Wireless Debugging…"
             is PairingProgress.StartingHelper -> "Starting helper process…"
             is PairingProgress.Done -> {
                 connectBtn.isEnabled = true
@@ -163,6 +211,9 @@ class MainActivity : AppCompatActivity() {
             }
             is PairingProgress.Failed -> {
                 connectBtn.isEnabled = true
+                if (progress.needsPairing) {
+                    showPairingDialog()
+                }
                 progress.message
             }
         }

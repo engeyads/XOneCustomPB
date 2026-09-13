@@ -464,14 +464,14 @@
                 android:textSize="11sp" />
 
             <Button
-                android:id="@+id/openAccessibilityBtn"
+                android:id="@+id/openDevSettingsBtn"
                 android:layout_width="0dp"
                 android:layout_height="40dp"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
                 android:backgroundTint="#E5E8EF"
                 android:fontFamily="sans-serif-bold"
-                android:text="Settings"
+                android:text="Dev Options"
                 android:textColor="#111318"
                 android:textSize="11sp" />
 

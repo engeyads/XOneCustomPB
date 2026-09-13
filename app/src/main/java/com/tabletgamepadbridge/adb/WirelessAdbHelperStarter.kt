@@ -18,20 +18,20 @@ sealed class PairingProgress {
     data object Connecting : PairingProgress()
     data object StartingHelper : PairingProgress()
     data object Done : PairingProgress()
-    data class Failed(val message: String) : PairingProgress()
+    data class Failed(val message: String, val needsPairing: Boolean = false) : PairingProgress()
 }
 
 /**
- * Connects directly to the device's Wireless Debugging service using the pre-authenticated
- * PC adbkey (iyads@IYAD), executing the helper process automatically without asking for
- * any pairing code.
+ * Connects directly to the device's Wireless Debugging service using the app's adbkey,
+ * executing the helper process automatically. If the device has not paired this certificate yet,
+ * prompts for a one-time 6-digit pairing code to register the certificate permanently.
  */
 @RequiresApi(Build.VERSION_CODES.R)
 class WirelessAdbHelperStarter(private val context: Context) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val key: AdbKey by lazy {
-        AdbKey(PreferenceAdbKeyStore(context.getSharedPreferences("adbkey", Context.MODE_PRIVATE)), "iyads@IYAD")
+        AdbKey(PreferenceAdbKeyStore(context.getSharedPreferences("adbkey", Context.MODE_PRIVATE)), "joybridge")
     }
 
     private val appProcessCommand: String by lazy {
@@ -39,24 +39,24 @@ class WirelessAdbHelperStarter(private val context: Context) {
         "CLASSPATH=$apkPath app_process / --nice-name=tgb_privileged com.tabletgamepadbridge.PrivilegedMain"
     }
 
-    /** Reconnects using the trusted PC key (iyads@IYAD). */
+    /** Reconnects using the app's persistent adbkey. */
     fun reconnectAndStart(onProgress: (PairingProgress) -> Unit) {
         onProgress(PairingProgress.DiscoveringConnectService)
         discoverPort(AdbMdns.TLS_CONNECT) { port ->
             if (port <= 0) {
-                onProgress(PairingProgress.Failed("Wireless debugging port not found - make sure Wireless debugging is ON in Developer options"))
+                onProgress(PairingProgress.Failed("Wireless debugging not found. Make sure Wireless debugging is ON in Developer options."))
                 return@discoverPort
             }
             connectAndStart(port, onProgress)
         }
     }
 
-    /** Full flow: pair using a fresh code if needed. */
+    /** Full flow: pair using a fresh code to register the certificate. */
     fun pairAndStart(pairingCode: String, onProgress: (PairingProgress) -> Unit) {
         onProgress(PairingProgress.DiscoveringPairingService)
         discoverPort(AdbMdns.TLS_PAIRING) { pairingPort ->
             if (pairingPort <= 0) {
-                onProgress(PairingProgress.Failed("Could not find pairing service - tap \"Pair device with pairing code\" in Settings first"))
+                onProgress(PairingProgress.Failed("Could not find pairing service. Tap \"Pair device with pairing code\" in Wireless debugging settings first."))
                 return@discoverPort
             }
 
@@ -69,7 +69,7 @@ class WirelessAdbHelperStarter(private val context: Context) {
                             if (ok) {
                                 reconnectAndStart(onProgress)
                             } else {
-                                onProgress(PairingProgress.PairingFailed("Pairing rejected - check code"))
+                                onProgress(PairingProgress.PairingFailed("Pairing rejected - please check the code"))
                             }
                         }
                     }
@@ -87,7 +87,7 @@ class WirelessAdbHelperStarter(private val context: Context) {
         onProgress(PairingProgress.Connecting)
         Thread {
             try {
-                Log.i(TAG, "Connecting to Wireless Debugging on 127.0.0.1:$connectPort with iyads@IYAD key")
+                Log.i(TAG, "Connecting to Wireless Debugging on 127.0.0.1:$connectPort")
                 AdbClient("127.0.0.1", connectPort, key).use { adb ->
                     adb.connect()
                     mainHandler.post { onProgress(PairingProgress.StartingHelper) }
@@ -98,7 +98,18 @@ class WirelessAdbHelperStarter(private val context: Context) {
                 mainHandler.post { onProgress(PairingProgress.Done) }
             } catch (e: Exception) {
                 Log.e(TAG, "Connect/start failed", e)
-                mainHandler.post { onProgress(PairingProgress.Failed("Connect failed: ${e.message}")) }
+                val errMsg = e.message ?: ""
+                val needsPairing = errMsg.contains("CERTIFICATE_UNKNOWN", ignoreCase = true) ||
+                        errMsg.contains("SSL", ignoreCase = true) ||
+                        errMsg.contains("protocol error", ignoreCase = true)
+
+                val displayMsg = if (needsPairing) {
+                    "One-time setup needed: Wireless Debugging pairing required."
+                } else {
+                    "Connect failed: $errMsg"
+                }
+
+                mainHandler.post { onProgress(PairingProgress.Failed(displayMsg, needsPairing)) }
             }
         }.start()
     }
