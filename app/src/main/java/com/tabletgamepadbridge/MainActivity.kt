@@ -144,17 +144,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openWirelessDebuggingSettings() {
-        try {
-            val intent = Intent(Settings.ACTION_SETTINGS).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(intent)
-        } catch (_: Exception) {
+        val intents = arrayOf(
+            Intent("android.settings.WIRELESS_DEBUGGING_SETTINGS"),
+            Intent().setClassName("com.android.settings", "com.android.settings.Settings\$WirelessDebuggingActivity"),
+            Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+            Intent().setClassName("com.android.settings", "com.android.settings.Settings\$DevelopmentSettingsDashboardActivity"),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+
+        for (intent in intents) {
             try {
-                val intent = Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
+                return
             } catch (_: Exception) {}
         }
     }
