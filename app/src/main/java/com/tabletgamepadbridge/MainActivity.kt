@@ -24,7 +24,7 @@ import java.util.Locale
 
 /**
  * Reads the controller via USB-OTG (GIP protocol), re-emits it via UHID,
- * and manages AdMob ads (15s automatic interstitial loop for free users) &
+ * and manages AdMob ads (3 ads immediately on launch, then 15s usage loop) &
  * Google Play $5 USD One-Time In-App Purchase to remove all ads.
  */
 class MainActivity : AppCompatActivity() {
@@ -124,8 +124,12 @@ class MainActivity : AppCompatActivity() {
         val isPro = BillingManager.isProPurchasedLocally(this)
         updateProUI(isPro)
 
-        // Initialize 15-second Interstitial Ad Loop for free users
-        adManager = AdManager(this) { BillingManager.isProPurchasedLocally(this) }
+        // Initialize 3-ad startup series & 15-second Interstitial Ad Loop for free users
+        adManager = AdManager(
+            this,
+            { BillingManager.isProPurchasedLocally(this) },
+            { showPurchaseDialog() }
+        )
         adManager?.startAdLoop()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
