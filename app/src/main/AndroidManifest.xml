@@ -22,10 +22,12 @@
 
         <activity
             android:name=".WelcomeActivity"
+            android:screenOrientation="sensorLandscape"
             android:exported="true" />
 
         <activity
             android:name=".MainActivity"
+            android:screenOrientation="sensorLandscape"
             android:exported="true"
             android:launchMode="singleTop">
             <intent-filter>
